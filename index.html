@@ -52,7 +52,7 @@ function convert(t,p){return normalize(t,p).map(r=>({market:p==='wb'?'WB':'Ozon'
     <section class="view" id="products">
       <article class="card"><div class="toolbar"><p id="product-count"></p><button class="btn" id="export">Скачать CSV</button></div><div class="table-wrap"><table class="table"><thead><tr><th data-sort="article">Артикул</th><th data-sort="units">Продажи</th><th data-sort="revenue">Выручка</th><th data-sort="cogs">Себестоимость</th><th data-sort="expenses">Расходы МП</th><th data-sort="profit">Прибыль</th><th data-sort="margin" title="Прибыль / выручка до СПП">Маржинальность</th><th data-sort="profitability" title="Прибыль / себестоимость">Рентабельность</th><th data-sort="buyout">Выкуп</th></tr></thead><tbody id="product-body"></tbody></table></div></article>
     </section>
-<section class="view" id="summary"><div id="summary-body"></div></section><section class="view" id="factor"><div id="factor-body"></div></section><section class="view" id="comparison"><div id="comparison-body"></div></section><details class="card" style="margin-top:18px"><summary>Методика и полнота данных</summary><p>Прибыль — исходная прибыль, включая налоги и расходы площадки, без накладных расходов бизнеса. Маржинальность = прибыль / выручка до СПП. Рентабельность = прибыль / себестоимость. При нулевом знаменателе показатель не определяется (—). Расходы нормализованы по знаку. Прочее включает остальные услуги площадки. Нераспределённые расходы включены отдельно.</p><p>Месяцы берутся из поля «мес»: точного календарного распределения недель по дням нет. Период с данными может быть незавершённым. График показывает до 12 недель, заканчивающихся выбранным периодом; выбор артикула действует и на график.</p><p>Выкуп: ВБ — реализованное количество / доставки; Ozon — реализованное количество / доставки. Это определения исходной модели, не когортная конверсия заказов. Пустые денежные ячейки существующих строк считаются нулём. Разница между прибылью и суммой выделенных статей показана как «Другие статьи / сверка».</p><p>Пороги маржинальности 20% и 40% — описательные группы образца, не план. Рекомендации не являются прогнозом. При ошибке обновления сохраняются последние успешно загруженные данные; при открытии без интернета — встроенный снимок.</p><p class="hint">Динамика только за выбранные недели. При выборе месяца показаны входящие в него недели по полю «мес» источника. При выборе одной недели на графике будет одна точка.</p></details>  </main>
+<section class="view" id="summary"><div id="summary-body"></div></section><section class="view" id="factor"><div id="factor-body"></div></section><section class="view" id="comparison"><div id="comparison-body"></div></section></main>
 </div>
 <script>
 let raw=window.DASHBOARD_DATA||[]; let maxYear,maxWeek,maxMonth; function bounds(){maxYear=Math.max(...raw.map(x=>x.year));maxWeek=Math.max(...raw.filter(x=>x.year===maxYear).map(x=>x.week));maxMonth=Math.max(...raw.filter(x=>x.year===maxYear&&x.week===maxWeek).map(x=>x.month));}bounds();
@@ -784,7 +784,7 @@ function v9FactorConclusion(ar,br,m){
   'логистики':'проверить стоимость доставки, возвраты, упаковку и распределение остатков по складам',
   'хранения':'проверить оборачиваемость и сократить избыточные остатки, которые создают расходы на хранение',
   'рекламы':'проверить кампании по прибыли, сократить расходы без достаточного объёма прибыльных продаж',
-  'прочих расходов МП':'расшифровать прочие удержания и начисления, проверить их корректность и повторяемость',
+  'прочих расходов МП':'расшифровать прочие расходы МП по отдельным статьям и определить их необходимость, при возможности сократить',
   'налогов':'проверить, соответствует ли изменение налогов динамике выручки и налоговой базе',
   'себестоимости':'проверить себестоимость единицы, закупочные цены и состав проданных товаров'
  };
@@ -910,7 +910,7 @@ v9FactorConclusion=function(ar,br,m){
   'Логистика':'Сравнить логистику на одну продажу и процент логистики. Возможные причины роста — изменение тарифов, габаритов или веса, расстояния доставки, географии складов, процента выкупа и количества возвратов.',
   'Хранение':'Сравнить процент и сумму хранения по SKU. Проверить тарифы хранения и товары, у которых расходы на хранение растут быстрее продаж.',
   'Реклама':'Сравнить ДРР, расходы на рекламу и прибыль по SKU. Увеличивать бюджет только для товаров и кампаний, где дополнительные продажи остаются прибыльными.',
-  'Прочие расходы МП':'Расшифровать прочие расходы МП по отдельным статьям и определить, какие начисления повторяются и сильнее всего снижают прибыль.',
+  'Прочие расходы МП':'Расшифровать прочие расходы МП по отдельным статьям и определить их необходимость, при возможности сократить.',
   'Себестоимость':'Сравнить себестоимость единицы и структуру проданных товаров. Проверить изменение закупочной стоимости и долю SKU с более высокой себестоимостью.'
  };
  const priorities=negative.slice(0,3).map((x,i)=>'<li><b>Приоритет '+(i+1)+': '+escapeText(x.name)+'.</b> Влияние на прибыль '+factorDelta(x.value)+'. '+escapeText(actions[x.name])+'</li>');
@@ -1075,6 +1075,30 @@ render=function(){ownerDynamicsRender();if($('#summary').classList.contains('act
 const ownerDynamicsStyle=document.createElement('style');
 ownerDynamicsStyle.textContent='.owner-dynamics-note{margin:0 0 18px;padding:12px 14px;border:1px solid #d9e2f1;border-radius:10px;background:#f8fbff;color:var(--muted);font-size:14px}#summary-body .draft-groups>details>summary{cursor:pointer}';
 document.head.appendChild(ownerDynamicsStyle);
+
+/* Final local refinements: concise factor table, totals in Products, responsive profit pie. */
+const ownerFactorWithoutNotes=v2Factor;
+v2Factor=function(){
+ ownerFactorWithoutNotes();
+ ownerRemoveFactorNotes();
+};
+function ownerRemoveFactorNotes(){
+ for(const hint of $$('#factor-body p.hint'))if(/^(Эффекты цены|Для строк без продаж|Таблица показывает, как изменение|Если в одном из периодов продаж не было|Арифметические факторы|Мост показывает, на сколько рублей)/.test(hint.textContent.trim()))hint.remove();
+}
+new MutationObserver(ownerRemoveFactorNotes).observe($('#factor-body'),{childList:true,subtree:true});
+
+const ownerProductsWithTotal=renderProducts;
+renderProducts=function(products){
+ ownerProductsWithTotal(products);
+ const body=$('#product-body');
+ if(!body||!products.length)return;
+ const a=agg(selectedRows()),profitClass=a.profit<0?'var(--red)':'var(--green)';
+ body.insertAdjacentHTML('afterbegin','<tr class="owner-products-total"><td><b>Итого</b></td><td>'+num(a.units)+'</td><td>'+money(a.revenue)+'</td><td>'+money(a.cogs)+'</td><td>'+money(a.expenses)+'</td><td style="color:'+profitClass+'">'+money(a.profit)+'</td><td><span class="pill '+(a.margin<0?'bad':a.margin<.2?'mid':'good')+'">'+pct(a.margin)+'</span></td><td>'+pct(a.profitability)+'</td><td>'+pct(a.buyout)+'</td></tr>');
+};
+
+const ownerLocalRefinementsStyle=document.createElement('style');
+ownerLocalRefinementsStyle.textContent='.owner-products-total td{background:#f1f4f8!important;font-weight:700;border-top:0!important;border-bottom:2px solid #d9e2f1}.owner-products-total td:first-child{z-index:3}#loss-list details{max-width:100%;overflow:hidden}#loss-list .v2-labeled-pie{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;height:auto!important;margin:0 auto!important}';
+document.head.appendChild(ownerLocalRefinementsStyle);
 
 })();
 fillArticles();bindDashboardFilters();render();refresh();
