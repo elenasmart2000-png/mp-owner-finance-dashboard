@@ -941,6 +941,8 @@ function ownerBase(rs){
  return {rows:scope.filter(r=>base.includes(wk(r))),label:'Предыдущие '+keys.length+' нед.'};
 }
 function ownerDelta(v){return '<b class="'+(v<0?'impact-bad':'impact-good')+'">'+signedMoney(v)+'</b>';}
+/* Combine all residual marketplace charges into one bridge factor. */
+draftBridge=function(a,b,m){const steps=[['Выручка',a.revenue-b.revenue],['Себестоимость',b.cogs-a.cogs],['Комиссия',b.commission-a.commission],['Логистика',b.logistics-a.logistics],['Реклама',b.ads-a.ads],['Прочие МП',b.other-a.other],['Налоги',b.tax-a.tax]];const rest=a.profit-b.profit-steps.reduce((s,x)=>s+x[1],0);if(Math.abs(rest)>.005)steps.push(['Сверка',rest]);return steps;};
 const ownerKpis=renderKpis;
 renderKpis=function(a){ownerKpis(a);const p=$('#kpis .profit');if(p)$('#kpis').prepend(p);};
 renderInsights=function(rs){
@@ -1044,36 +1046,225 @@ const ownerOverviewRender=render;
 render=function(){ownerOverviewRender();ownerOverviewOnly();};
 for(const tab of $$('.tab'))tab.addEventListener('click',()=>queueMicrotask(ownerOverviewOnly));
 
-/* Dynamics chart groups start collapsed and keep the state chosen by the user. */
+/* Dynamics: source-order summary first, then one chart group whose state is user-controlled. */
 const ownerDynamicsOpen=new Set();
+const ownerDynamicsTablesOpen=new Set();
+const ownerDynamicsSppOpen=new Set();
+function ownerDynamicsMetrics(m){
+ const metrics=[
+  ['Выкуп',a=>a.buyout,'pct'],
+  ['Продажи, шт.',a=>a.units,'num'],
+  ['Выручка до СПП, ₽',a=>a.revenue,'money'],
+  ['Себестоимость, ₽',a=>a.cogs,'money'],
+  ['Комиссия, ₽',a=>a.commission,'money',true],
+  ['Логистика, ₽',a=>a.logistics,'money',true],
+  ['Реклама, ₽',a=>a.ads,'money',true]
+ ];
+ if(m==='WB')metrics.push(
+  ['Хранение, ₽',a=>a.storage,'money',true],
+  ['Штрафы, ₽',a=>a.penalties,'money',true],
+  ['Прочие удержания, ₽',a=>a.otherWithholdings,'money',true],
+  ['Кредит, ₽',a=>a.credit,'money',true]
+ );else metrics.push(
+  ['Дополнительные услуги, ₽',a=>a.extra,'money',true],
+  ['Компенсации и прочие начисления, ₽',a=>a.comp,'money',true],
+  ['Услуги ЕАЭС, ₽',a=>a.eaeu,'money',true]
+ );
+ metrics.push(
+  ['Расходы МП, ₽',a=>a.expenses,'money'],
+  ['Налоги, ₽',a=>a.tax,'money'],
+  ['Прибыль, ₽',a=>a.profit,'money'],
+  ['Выручка после СПП, ₽',a=>a.afterRevenue,'money'],
+  ['Рентабельность',a=>a.profitability,'pct'],
+  ['Маржинальность',a=>a.margin,'pct'],
+  ['% себестоимости',a=>summaryRatio(a.cogs,a.revenue),'pct'],
+  ['% расходов МП',a=>summaryRatio(a.expenses,a.revenue),'pct'],
+  ['% комиссии',a=>summaryRatio(a.commission,a.revenue),'pct',true],
+  ['% логистики',a=>summaryRatio(a.logistics,a.revenue),'pct',true],
+  ['ДРР',a=>summaryRatio(a.ads,a.revenue),'pct',true]
+ );
+ if(m==='WB')metrics.push(
+  ['% хранения',a=>summaryRatio(a.storage,a.revenue),'pct',true],
+  ['% прочих удержаний',a=>summaryRatio(a.otherWithholdings+a.penalties,a.revenue),'pct',true],
+  ['% кредита',a=>summaryRatio(a.credit,a.revenue),'pct',true],
+  ['% расходов МП без кредита',a=>summaryRatio(a.expenses-a.credit,a.revenue),'pct']
+ );else metrics.push(
+  ['% дополнительных услуг',a=>summaryRatio(a.extra,a.revenue),'pct',true],
+  ['% услуг ЕАЭС',a=>summaryRatio(a.eaeu,a.revenue),'pct',true]
+ );
+ metrics.push(
+  ['Цена до СПП, ₽',a=>summaryRatio(a.revenue,a.units),'money'],
+  ['Цена после СПП, ₽',a=>summaryRatio(a.afterRevenue,a.units),'money'],
+  ['% СПП',a=>a.revenue?1-a.afterRevenue/a.revenue:null,'pct']
+ );
+ if(m==='Ozon')metrics.push(['Себестоимость Ед., ₽',a=>summaryRatio(a.cogs,a.units),'money']);
+ return metrics;
+}
+function ownerDynamicsSummaryTable(m){
+ const rs=selectedRows().filter(r=>r.market===m),keys=[...new Set(rs.map(wk))].sort();
+ if(!rs.length)return '';
+ const groups=keys.map(k=>summaryAggregate(rs.filter(r=>wk(r)===k))),total=summaryAggregate(rs);
+ return '<details class="card owner-dynamics-summary"><summary>Свод по показателям</summary><div class="table-wrap"><table class="table summary-table"><thead><tr><th>Показатель</th><th>Итого по площадке</th>'+keys.map(k=>'<th>'+escapeText(k.replace('-W',' · нед. '))+'</th>').join('')+'</tr></thead><tbody>'+ownerDynamicsMetrics(m).map(([label,fn,type,child])=>'<tr><td class="'+(child?'owner-dynamics-child':'')+'">'+escapeText(label)+'</td><td><b>'+summaryFormat(fn(total),type)+'</b></td>'+groups.map(a=>'<td>'+summaryFormat(fn(a),type)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></details>';
+}
+function ownerIndicatorMetrics(m){
+ const metrics=[
+  ['% выкупа',a=>a.buyout,'pct'],
+  ['Кол-во продаж',a=>a.units,'num'],
+  ['Сумма продаж до СПП',a=>a.revenue,'money'],
+  ['Себестоимость',a=>a.cogs,'money'],
+  ['Расходы МП',a=>a.expenses,'money'],
+  ['Комиссия',a=>a.commission,'money',true],
+  ['Логистика',a=>a.logistics,'money',true],
+  ['Реклама',a=>a.ads,'money',true]
+ ];
+ if(m==='WB')metrics.push(
+  ['Штрафы',a=>a.penalties,'money',true],
+  ['Прочие удержания',a=>a.otherWithholdings,'money',true],
+  ['Хранение',a=>a.storage,'money',true]
+ );else metrics.push(
+  ['Доп. услуги',a=>a.extra,'money',true],
+  ['Прочие начисления',a=>a.comp,'money',true],
+  ['Услуги ЕАЭС',a=>a.eaeu,'money',true]
+ );
+ metrics.push(
+  ['Налог',a=>a.tax,'money'],
+  ['Прибыль',a=>a.profit,'money'],
+  ['Сумма СПП',a=>a.revenue-a.afterRevenue,'money'],
+  ['% рентабельности',a=>a.profitability,'pct'],
+  ['% прибыли',a=>a.margin,'pct'],
+  ['% себестоимости',a=>summaryRatio(a.cogs,a.revenue),'pct'],
+  ['% расходов МП',a=>summaryRatio(a.expenses,a.revenue),'pct'],
+  ['% комиссии',a=>summaryRatio(a.commission,a.revenue),'pct',true],
+  ['% логистики',a=>summaryRatio(a.logistics,a.revenue),'pct',true],
+  ['% ДРР',a=>summaryRatio(a.ads,a.revenue),'pct',true]
+ );
+ if(m==='WB')metrics.push(
+  ['% штрафов',a=>summaryRatio(a.penalties,a.revenue),'pct',true],
+  ['% прочих удержаний',a=>summaryRatio(a.otherWithholdings,a.revenue),'pct',true],
+  ['% хранения',a=>summaryRatio(a.storage,a.revenue),'pct',true]
+ );else metrics.push(
+  ['% доп. услуг',a=>summaryRatio(a.extra,a.revenue),'pct',true],
+  ['% ЕАЭС',a=>summaryRatio(a.eaeu,a.revenue),'pct',true]
+ );
+ metrics.push(
+  ['% налога',a=>summaryRatio(a.tax,a.revenue),'pct'],
+  ['Ср. чек до СПП',a=>summaryRatio(a.revenue,a.units),'money'],
+  ['Ср. чек после СПП',a=>summaryRatio(a.afterRevenue,a.units),'money'],
+  ['% СПП',a=>a.revenue?1-a.afterRevenue/a.revenue:null,'pct']
+ );
+ metrics.push(['Себестоимость Ед.',a=>summaryRatio(a.cogs,a.units),'money']);
+ return metrics;
+}
+function ownerIndicatorSummaryTable(m){
+ const rs=selectedRows().filter(r=>r.market===m),keys=[...new Set(rs.map(wk))].sort();
+ if(!rs.length)return '';
+ const groups=keys.map(k=>summaryAggregate(rs.filter(r=>wk(r)===k))),metrics=ownerIndicatorMetrics(m),rows=[['Итого',summaryAggregate(rs)],...keys.map((k,i)=>[k.replace('-W','-'),groups[i]])];
+ const unitStart=metrics.findIndex(x=>x[0]==='% себестоимости'),unitEnd=metrics.findIndex(x=>x[0]==='% налога');
+ const narrowLabels=['% комиссии','% логистики','% ДРР','% штрафов','% доп. услуг','% ЕАЭС','% хранения','% налога','% СПП'];
+ const isUnit=(label)=>{const i=metrics.findIndex(x=>x[0]===label);return i>=unitStart&&i<=unitEnd;};
+ const colClass=(label,child)=>[label==='Прибыль'?'owner-profit-col':label==='% рентабельности'?'owner-return-col':label==='% прибыли'?'owner-margin-col':'',label==='Сумма СПП'?'owner-spp-col':'',narrowLabels.includes(label)?'owner-narrow-col':'',isUnit(label)?'owner-unit-col':'',child?'owner-expense-child':''].filter(Boolean).join(' ');
+ const headerLabel=label=>({'% комиссии':'%<br>комиссии','% логистики':'%<br>логистики','% ДРР':'%<br>ДРР','% штрафов':'%<br>штрафов','% доп. услуг':'% доп.<br>услуг','% ЕАЭС':'%<br>ЕАЭС','% хранения':'%<br>хранения','% налога':'%<br>налога','% СПП':'%<br>СПП'}[label]||escapeText(label));
+ const firstHeader=metrics.map(([label,,,child],i)=>i<unitStart||i>unitEnd?'<th rowspan="2" class="'+colClass(label,child)+'">'+headerLabel(label)+'</th>':i===unitStart?'<th colspan="'+(unitEnd-unitStart+1)+'" class="owner-unit-group">Показатели юнит - экономики</th>':'').join('');
+ const secondHeader=metrics.slice(unitStart,unitEnd+1).map(([label,,,child])=>'<th class="'+colClass(label,child)+'">'+headerLabel(label)+'</th>').join('');
+ return '<details class="card owner-indicator-summary"><summary>Свод по неделям</summary><button type="button" class="owner-spp-toggle" aria-expanded="false">+ Показать Сумму СПП</button><div class="table-wrap"><table class="table owner-indicator-table"><thead><tr><th rowspan="2">Неделя</th>'+firstHeader+'</tr><tr>'+secondHeader+'</tr></thead><tbody>'+rows.map(([label,a],i)=>'<tr class="'+(i?'':'owner-indicator-total')+'"><td>'+escapeText(label)+'</td>'+metrics.map(([metric,fn,type,child])=>{const value=fn(a),tone=metric==='Прибыль'?(value<0?' impact-bad':' impact-good'):'';return '<td class="'+colClass(metric,child)+tone+'">'+summaryFormat(value,type)+'</td>';}).join('')+'</tr>').join('')+'</tbody></table></div></details>';
+}
+function ownerChartScore(card){
+ return (card.querySelector('svg')?100:0)+(card.querySelectorAll('svg circle,svg path').length*2)-(/\bнет данных\b/i.test(card.textContent)?50:0);
+}
+function ownerDedupeCharts(container){
+ for(const wrapper of [...container.querySelectorAll(':scope > details.card')]){
+  const nested=wrapper.querySelector(':scope > .summary-charts');
+  if(nested)for(const card of [...nested.querySelectorAll(':scope > .card')])wrapper.before(card);
+  wrapper.remove();
+ }
+ for(const card of [...container.querySelectorAll(':scope > .card')]){
+  const title=card.querySelector(':scope > h3')?.textContent.trim()||'';
+  const nested=[...card.querySelectorAll('.card')].find(x=>x.querySelector(':scope > h3')?.textContent.trim()===title);
+  if(nested)card.replaceWith(nested);
+ }
+ const chosen=new Map();
+ for(const card of [...container.querySelectorAll(':scope > .card')]){
+  const title=card.querySelector('h3')?.textContent.trim()||'';
+  if(!title)continue;
+  const prior=chosen.get(title);
+  if(!prior){chosen.set(title,card);continue;}
+  if(ownerChartScore(card)>ownerChartScore(prior)){prior.remove();chosen.set(title,card);}else card.remove();
+ }
+}
 function ownerDynamicsLayout(){
  const body=$('#summary-body');
  if(!body)return;
  if(!body.querySelector('.owner-dynamics-note'))body.insertAdjacentHTML('afterbegin','<p class="owner-dynamics-note">Выберите период больше 1 недели</p>');
  for(const marketSection of body.querySelectorAll('.summary-market')){
   const marketTitle=marketSection.querySelector(':scope > h2')?.textContent.trim()||'';
-  const market=/ozon/i.test(marketTitle)?'Ozon':'WB';
-  for(const details of marketSection.querySelectorAll('.draft-groups > details')){
-   if(!details.querySelector(':scope > .summary-charts'))continue;
-   const title=details.querySelector(':scope > summary')?.textContent.trim()||'Динамика';
-   const key=market+'|'+title;
-   details.dataset.dynamicsKey=key;
-   details.open=ownerDynamicsOpen.has(key);
-   if(details.dataset.dynamicsBound)continue;
-   details.dataset.dynamicsBound='1';
-   details.addEventListener('toggle',()=>{
-    if(!details.isConnected)return;
-    if(details.open)ownerDynamicsOpen.add(key);else ownerDynamicsOpen.delete(key);
+  const market=/ozon/i.test(marketTitle)?'Ozon':'WB',key=market+'|graphs';
+  marketSection.querySelector(':scope > .summary-fold')?.remove();
+  if(!marketSection.querySelector(':scope > .owner-dynamics-summary'))marketSection.querySelector(':scope > h2')?.insertAdjacentHTML('afterend',ownerDynamicsSummaryTable(market));
+  if(!marketSection.querySelector(':scope > .owner-indicator-summary'))marketSection.querySelector(':scope > h2')?.insertAdjacentHTML('afterend',ownerIndicatorSummaryTable(market));
+  for(const [selector,suffix] of [['.owner-indicator-summary','weeks'],['.owner-dynamics-summary','metrics']]){
+   const tableDetails=marketSection.querySelector(':scope > '+selector);
+   if(!tableDetails)continue;
+   const tableKey=market+'|'+suffix;
+   tableDetails.open=ownerDynamicsTablesOpen.has(tableKey);
+   if(tableDetails.dataset.ownerBound)continue;
+   tableDetails.dataset.ownerBound='1';
+   tableDetails.addEventListener('toggle',()=>{
+    if(!tableDetails.isConnected)return;
+    if(tableDetails.open)ownerDynamicsTablesOpen.add(tableKey);else ownerDynamicsTablesOpen.delete(tableKey);
    });
   }
+  const weeklyTable=marketSection.querySelector(':scope > .owner-indicator-summary'),sppKey=market+'|spp';
+  if(weeklyTable){
+   const sppButton=weeklyTable.querySelector('.owner-spp-toggle');
+   const syncSpp=()=>{const open=ownerDynamicsSppOpen.has(sppKey);weeklyTable.classList.toggle('owner-spp-open',open);sppButton.setAttribute('aria-expanded',String(open));sppButton.textContent=open?'− Скрыть Сумму СПП':'+ Показать Сумму СПП';};
+   syncSpp();
+   if(!sppButton.dataset.ownerBound){
+    sppButton.dataset.ownerBound='1';
+    sppButton.addEventListener('click',()=>{if(ownerDynamicsSppOpen.has(sppKey))ownerDynamicsSppOpen.delete(sppKey);else ownerDynamicsSppOpen.add(sppKey);syncSpp();});
+   }
+  }
+  const currentGraphs=marketSection.querySelector(':scope > .owner-graphs-fold');
+  if(currentGraphs){
+   ownerDedupeCharts(currentGraphs.querySelector(':scope > .summary-charts'));
+   continue;
+  }
+  const oldGroups=marketSection.querySelector(':scope > .draft-groups');
+  if(!oldGroups)continue;
+  const chosen=new Map();
+  for(const card of oldGroups.querySelectorAll('.summary-charts > .card')){
+   const title=card.querySelector('h3')?.textContent.trim()||'';
+   if(!title)continue;
+   const prior=chosen.get(title);
+   if(!prior||ownerChartScore(card)>ownerChartScore(prior))chosen.set(title,card);
+  }
+  const details=document.createElement('details');
+  details.className='card owner-graphs-fold';
+  details.open=ownerDynamicsOpen.has(key);
+  details.innerHTML='<summary>Графики</summary><div class="summary-charts"></div>';
+  const charts=details.querySelector('.summary-charts');
+  for(const card of chosen.values())charts.appendChild(card);
+  ownerDedupeCharts(charts);
+  details.addEventListener('toggle',()=>{
+   if(!details.isConnected)return;
+   if(details.open)ownerDynamicsOpen.add(key);else ownerDynamicsOpen.delete(key);
+  });
+  oldGroups.replaceWith(details);
  }
 }
 const ownerDynamicsSummary=renderSummary;
-renderSummary=function(){ownerDynamicsSummary();ownerDynamicsLayout();};
+renderSummary=function(){ownerDynamicsSummary();ownerDynamicsLayout();queueMicrotask(ownerDynamicsLayout);};
 const ownerDynamicsRender=render;
-render=function(){ownerDynamicsRender();if($('#summary').classList.contains('active'))ownerDynamicsLayout();};
+render=function(){ownerDynamicsRender();if($('#summary').classList.contains('active')){ownerDynamicsLayout();queueMicrotask(ownerDynamicsLayout);}};
+let ownerDynamicsQueued=false;
+new MutationObserver(()=>{
+ if(ownerDynamicsQueued)return;
+ ownerDynamicsQueued=true;
+ setTimeout(()=>{ownerDynamicsQueued=false;ownerDynamicsLayout();},0);
+}).observe($('#summary-body'),{childList:true,subtree:true});
 const ownerDynamicsStyle=document.createElement('style');
-ownerDynamicsStyle.textContent='.owner-dynamics-note{margin:0 0 18px;padding:12px 14px;border:1px solid #d9e2f1;border-radius:10px;background:#f8fbff;color:var(--muted);font-size:14px}#summary-body .draft-groups>details>summary{cursor:pointer}';
+ownerDynamicsStyle.textContent='.owner-dynamics-note{margin:0 0 18px;padding:12px 14px;border:1px solid #d9e2f1;border-radius:10px;background:#f8fbff;color:var(--muted);font-size:14px}.owner-indicator-summary,.owner-dynamics-summary{margin-bottom:18px}.owner-indicator-summary>summary,.owner-dynamics-summary>summary{cursor:pointer;font-size:18px;font-weight:800;color:var(--ink)}.owner-indicator-summary[open]>summary,.owner-dynamics-summary[open]>summary{margin-bottom:12px}.owner-indicator-summary .table-wrap{overflow:auto;scrollbar-gutter:stable}.owner-indicator-table{min-width:2600px}.owner-indicator-table th{white-space:normal;min-width:86px;text-align:center;line-height:1.15}.owner-indicator-table th:first-child,.owner-indicator-table td:first-child{position:sticky;left:0;z-index:3;background:#f3f6fb;min-width:100px}.owner-indicator-table thead th{position:sticky;top:0;z-index:4}.owner-indicator-table thead th:first-child{z-index:5}.owner-indicator-table td{text-align:right;white-space:nowrap}.owner-indicator-table .owner-indicator-total td{font-weight:800}.owner-indicator-table th.owner-profit-col{background:#365f91;color:#fff}.owner-indicator-table td.owner-profit-col{background:#edf3fa}.owner-indicator-table th.owner-return-col{background:#f5cccc;color:#7f1d1d}.owner-indicator-table td.owner-return-col{background:#fff4f4}.owner-indicator-table th.owner-margin-col{background:#fff0bd;color:#6b4f00}.owner-indicator-table td.owner-margin-col{background:#fffaf0}.owner-indicator-table .owner-indicator-total td:not(.owner-profit-col):not(.owner-return-col):not(.owner-margin-col){background:#eef3fb}.owner-dynamics-summary .table-wrap{max-height:470px;overflow:auto;scrollbar-gutter:stable}.owner-dynamics-summary thead th{position:sticky;top:0;z-index:2}.owner-dynamics-summary .owner-dynamics-child{padding-left:28px;color:var(--muted)}.owner-graphs-fold{margin-top:18px}.owner-graphs-fold>summary{cursor:pointer;font-size:18px;font-weight:800;color:var(--ink)}.owner-graphs-fold[open]>summary{margin-bottom:18px}.owner-graphs-fold>.summary-charts{padding:0;border:0;background:transparent}.owner-graphs-fold .v2-combo path{stroke-width:2.5!important}';
+ownerDynamicsStyle.textContent+='.owner-spp-toggle{margin:0 0 10px;padding:6px 10px;border:1px solid #d7dfec;border-radius:8px;background:#f7f9fc;color:#53627a;font:600 12px inherit;cursor:pointer}.owner-indicator-summary:not(.owner-spp-open) .owner-spp-col{display:none}.owner-indicator-table{min-width:2200px;table-layout:fixed}.owner-indicator-table th{min-width:72px;padding:8px 6px;vertical-align:middle;overflow-wrap:anywhere;word-break:normal}.owner-indicator-table th.owner-expense-child{vertical-align:bottom;color:#7c879d;font-weight:500;background:#f8fafc}.owner-indicator-table td.owner-expense-child{color:#53627a}.owner-indicator-table .owner-narrow-col{width:58px;min-width:58px}';
+ownerDynamicsStyle.textContent+='.owner-indicator-table .owner-unit-group{height:32px;background:#dfe7f7;color:#294c7a;font-weight:800;letter-spacing:.01em;text-align:center}.owner-indicator-table th.owner-unit-col:not(.owner-return-col):not(.owner-margin-col){background:#edf2fb}.owner-indicator-table td.owner-unit-col:not(.owner-return-col):not(.owner-margin-col){background:#f7f9fd}.owner-indicator-table th.owner-unit-col.owner-expense-child{background:#e8eef8}.owner-indicator-table thead tr:nth-child(2) th{top:32px}.owner-indicator-table thead tr:nth-child(2) th:first-child{left:auto;z-index:4}';
 document.head.appendChild(ownerDynamicsStyle);
 
 /* Final local refinements: concise factor table, totals in Products, responsive profit pie. */
@@ -1099,6 +1290,22 @@ renderProducts=function(products){
 const ownerLocalRefinementsStyle=document.createElement('style');
 ownerLocalRefinementsStyle.textContent='.owner-products-total td{background:#f1f4f8!important;font-weight:700;border-top:0!important;border-bottom:2px solid #d9e2f1}.owner-products-total td:first-child{z-index:3}#loss-list details{max-width:100%;overflow:hidden}#loss-list .v2-labeled-pie{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;height:auto!important;margin:0 auto!important}';
 document.head.appendChild(ownerLocalRefinementsStyle);
+
+/* Keep table values compact: currency is stated by the metric, not repeated in every cell. */
+function ownerStripTableCurrency(){
+ for(const cell of document.querySelectorAll('table td')){
+  const walker=document.createTreeWalker(cell,NodeFilter.SHOW_TEXT);
+  let node;
+  while((node=walker.nextNode()))if(node.nodeValue.includes('₽'))node.nodeValue=node.nodeValue.replace(/[ \u00a0\u202f]*₽/g,'');
+ }
+}
+let ownerCurrencyQueued=false;
+new MutationObserver(()=>{
+ if(ownerCurrencyQueued)return;
+ ownerCurrencyQueued=true;
+ queueMicrotask(()=>{ownerCurrencyQueued=false;ownerStripTableCurrency();});
+}).observe(document.body,{childList:true,subtree:true,characterData:true});
+ownerStripTableCurrency();
 
 })();
 fillArticles();bindDashboardFilters();render();refresh();
