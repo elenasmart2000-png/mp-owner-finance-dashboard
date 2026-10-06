@@ -1307,6 +1307,272 @@ new MutationObserver(()=>{
 }).observe(document.body,{childList:true,subtree:true,characterData:true});
 ownerStripTableCurrency();
 
+/* Comparison: color the displayed change by its expected effect on profit. */
+function ownerComparisonDisplayedDelta(text){
+ const normalized=String(text||'').replace(/[\u00a0\u202f\s]/g,'').replace('−','-').replace(',','.');
+ const match=normalized.match(/[+-]?\d+(?:\.\d+)?/);
+ return match?Number(match[0]):null;
+}
+function ownerComparisonImpact(label,value){
+ if(value==null||!Number.isFinite(value)||Object.is(value,-0)||value===0)return '';
+ const metric=String(label||'').trim();
+ if(/СПП/i.test(metric)&&!/(Средний чек|Цена после)/i.test(metric))return value>0?'impact-good':'impact-bad';
+ if(/ДРР/i.test(metric))return value>0?'impact-bad':'impact-good';
+ if(['Средний чек / Цена после СПП','Цена после СПП'].includes(metric))return '';
+ if(metric==='% выкупа'||metric==='Выкуп')return value>0?'impact-good':'impact-bad';
+ const higherRed=/^(Себестоимость Ед\.|Себестоимость, %|Комиссия, %|Логистика, %|Хранение, %|ДРР, %|ДРР, руб|Прочие удержания|% расходов МП|% расходов МП без прочих)$/i.test(metric);
+ return (higherRed?-value:value)>0?'impact-good':'impact-bad';
+}
+function ownerFixComparisonColors(){
+ for(const row of $$('#comparison-body .cmp-table tbody tr')){
+  const changeCell=row.children[3];
+  if(!changeCell)continue;
+  changeCell.classList.remove('impact-good','impact-bad');
+  const value=ownerComparisonDisplayedDelta(changeCell.textContent);
+  const cls=ownerComparisonImpact(row.children[0]?.textContent,value);
+  if(cls)changeCell.classList.add(cls);
+ }
+}
+const ownerComparisonWithCorrectColors=renderComparison;
+renderComparison=function(){
+ ownerComparisonWithCorrectColors();
+ ownerFixComparisonColors();
+};
+
+/* Final owner-facing comparison logic: only material changes create actions. */
+const ownerMaterialNarrative=cmpNarrative;
+cmpNarrative=function(a,b,m,ha,hb){
+ const n=ownerMaterialNarrative(a,b,m,ha,hb);
+ if(!ha||!hb||!a.revenue||!b.revenue)return n;
+ const share=k=>summaryRatio(a[k],a.revenue)-summaryRatio(b[k],b.revenue);
+ const logistics=share('logistics'),storage=m==='WB'?share('storage'):0,drr=share('ads');
+ const buyout=a.buyout!=null&&b.buyout!=null?a.buyout-b.buyout:null;
+ n.actions=n.actions.filter(action=>{
+  if(/дол[яию] логистик|стоимость доставки и возвратов|Контролировать логистику/i.test(action))return logistics>=.005;
+  if(/хранени/i.test(action))return storage>=.005;
+  if(/эффективност[ьи] рекламы|рекламные кампании с высоким расходом/i.test(action))return drr>=.005;
+  if(/снижени[ея] выкупа/i.test(action))return buyout!=null&&buyout<=-.005;
+  return true;
+ });
+ const add=action=>{if(!n.actions.some(x=>x===action))n.actions.push(action);};
+ if(logistics>=.005)add('Доля логистики заметно выросла. Сравнить стоимость доставки одной продажи и возвратов, процент выкупа и состав проданных товаров.');
+ if(storage>=.005)add('Доля хранения заметно выросла. Расшифровать начисления по товарам и определить, какие позиции создают рост расходов.');
+ if(drr>=.005)add('ДРР заметно вырос. Проверить прибыль продаж по рекламным кампаниям и сократить расходы, которые не дают достаточного прироста прибыли.');
+ if(buyout!=null&&buyout<=-.005)add('Выкуп заметно снизился. Проверить возвраты и одновременно оценить изменение логистики на одну продажу.');
+ if(!n.actions.length)n.actions.push('Существенных ухудшений управляемых показателей не выявлено. Сохранить текущие условия и контролировать прибыль с каждой дополнительной продажи.');
+ return n;
+};
+
+function ownerAdvertisingPaybackNarrative(a,b,isArticle){
+ const adsDelta=a.ads-b.ads,unitsDelta=a.units-b.units,drrA=summaryRatio(a.ads,a.revenue),drrB=summaryRatio(b.ads,b.revenue),drrDelta=drrA-drrB;
+ const afterPriceA=summaryRatio(a.afterRevenue,a.units),afterPriceB=summaryRatio(b.afterRevenue,b.units),priceDelta=afterPriceA-afterPriceB,pricePct=afterPriceB?priceDelta/afterPriceB:0;
+ const adTone=adsDelta>0?'impact-bad':adsDelta<0?'impact-good':'',unitTone=unitsDelta>0?'impact-good':unitsDelta<0?'impact-bad':'',drrTone=Math.round(drrDelta*100)===0?'':drrDelta<0?'impact-good':'impact-bad';
+ let html='<b>Анализ окупаемости рекламы.</b> '+colorNarrativeNumbers('Расходы на рекламу: '+money(b.ads)+' → '+money(a.ads),adTone)+'. '+colorNarrativeNumbers('Количество продаж: '+num(b.units)+' → '+num(a.units),unitTone)+'. '+colorNarrativeNumbers('ДРР: '+pct(drrB)+' → '+pct(drrA),drrTone)+'. ';
+ if(adsDelta>0&&unitsDelta>0&&a.units>0){
+  const unitMarginBeforeAds=(a.cleanProfit+a.ads)/a.units,extraMargin=unitsDelta*unitMarginBeforeAds,net=extraMargin-adsDelta,coverage=adsDelta?extraMargin/adsDelta:0,paid=extraMargin>=adsDelta;
+  html+='Если условно считать, что весь прирост количества дала реклама, дополнительные продажи принесли около '+colorNarrativeNumbers(money(extraMargin),extraMargin>=0?'impact-good':'impact-bad')+' прибыли до рекламы. Дополнительные расходы на рекламу — '+colorNarrativeNumbers(money(adsDelta),'impact-bad')+'. Они покрыты расчётной прибылью на '+colorNarrativeNumbers(pct(coverage),paid?'impact-good':'impact-bad')+'. ';
+  if(paid)html+='После дополнительных расходов на рекламу осталось около '+colorNarrativeNumbers(money(net),'impact-good')+'. <span class="impact-good">При таком допущении увеличение рекламы'+(isArticle?' на данный артикул':'')+' окупилось.</span> ';
+  else {html+='Даже при таком допущении до окупаемости не хватило около '+colorNarrativeNumbers(money(Math.abs(net)),'impact-bad')+'. <span class="impact-bad">Увеличение рекламы'+(isArticle?' на данный артикул':'')+' не окупилось.</span> ';if(isArticle)html+='При этом реклама могла привести покупателя на эту карточку, после чего он выбрал другой артикул. Такой эффект в данных по одному артикулу не виден. ';}
+ }else if(adsDelta>0){
+  html+='Расходы на рекламу выросли на '+colorNarrativeNumbers(money(adsDelta),'impact-bad')+', но дополнительного количества продаж не получено. Окупаемость увеличения рекламы не подтверждается. ';
+ }else if(adsDelta<0){
+  html+='Расходы на рекламу снизились на '+colorNarrativeNumbers(money(Math.abs(adsDelta)),'impact-good')+'. Оценивать окупаемость увеличения бюджета в этом сравнении не требуется. ';
+ }else html+='Расходы на рекламу не изменились. Оценивать окупаемость увеличения бюджета в этом сравнении не требуется. ';
+ if(afterPriceA!=null&&afterPriceB!=null&&Math.abs(pricePct)>.005){
+  const priceTone=priceDelta<0?'impact-bad':'impact-good',direction=priceDelta<0?'снизилась':'выросла';
+  html+='Средняя цена после СПП '+direction+': '+colorNarrativeNumbers(money(afterPriceB)+' → '+money(afterPriceA)+' ('+(pricePct>0?'+':'')+pct(pricePct)+')',priceTone)+'. ';
+  if(priceDelta<0&&unitsDelta>0)html+='Поэтому рост количества нельзя полностью относить к рекламе: часть покупателей могла прийти из-за более низкой цены'+(a.spp!=null&&b.spp!=null&&a.spp>b.spp?' при росте СПП':'')+'.';
+  else if(priceDelta<0&&unitsDelta<0)html+='Несмотря на снижение цены, количество продаж сократилось: более низкая цена не обеспечила рост продаж.';
+  else if(priceDelta<0)html+='Количество продаж не выросло, несмотря на снижение цены.';
+  else if(priceDelta>0&&unitsDelta>0&&adsDelta>0)html+='Более низкая цена не могла поддержать продажи, поскольку цена выросла. Из наблюдаемых показателей увеличение рекламы могло повлиять на рост количества, но без данных рекламного кабинета нельзя определить, какая часть прироста получена именно благодаря рекламе.';
+  else if(priceDelta>0&&unitsDelta>0)html+='Количество продаж выросло, хотя цена увеличилась, а расходы на рекламу не выросли. Значит, рост мог быть связан с другими факторами спроса, которые не отражены в дашборде. Для определения причины нужно проверить органический трафик, позиции карточки, акции площадки и динамику конкурентов.';
+  else if(priceDelta>0&&unitsDelta<0)html+='Количество продаж снизилось одновременно с ростом цены. Более высокая цена могла ограничить спрос, но это требует проверки.';
+  else html+='Количество продаж не изменилось.';
+ }else if(unitsDelta>0)html+='Средняя цена после СПП существенно не изменилась, но без данных рекламного кабинета нельзя утверждать, что весь прирост количества обеспечила реклама.';
+ else if(unitsDelta<0)html+='Средняя цена после СПП существенно не изменилась, а количество продаж сократилось.';
+ else html+='Средняя цена после СПП и количество продаж существенно не изменились.';
+ return html;
+}
+
+function ownerColorComparisonNarratives(){
+ for(const card of $$('#comparison-body .cmp-grid > .card, #comparison-body > article.card')){
+  const title=card.querySelector(':scope > h3')?.textContent.trim();
+  const detailTitle=card.closest('.v2-details')?.querySelector(':scope > summary')?.textContent||'';
+  let heading=(card.closest('.v2-details')||card).previousElementSibling;
+  while(heading&&heading.tagName!=='H2')heading=heading.previousElementSibling;
+  const market=/·\s*WB\b/.test(title)?'WB':/·\s*Ozon\b/i.test(title)?'Ozon':/\bWB\b/.test(detailTitle)?'WB':/Ozon/i.test(detailTitle)?'Ozon':/^WB/i.test(heading?.textContent||'')?'WB':/Ozon/i.test(heading?.textContent||'')?'Ozon':'';
+  if(!title||!market)continue;
+  const totalCard=/^Общий итог по площадке/.test(title);
+  const scope=raw.filter(r=>r.market===market&&(!$('#search').value||r.article===$('#search').value)&&(totalCard||title==='Все артикулы — итог'||r.article===title));
+  const current=scope.filter(r=>cmpKey(r)===$('#cmp-current').value),base=scope.filter(r=>cmpKey(r)===$('#cmp-base').value);
+  if(!current.length||!base.length)continue;
+  const a=cmpAgg(current,market),b=cmpAgg(base,market);
+  for(const paragraph of card.querySelectorAll('details p')){
+   const text=paragraph.textContent.trim();
+   if(text.startsWith('% себестоимости:')){
+    const current=summaryRatio(a.cogs,a.revenue),previous=summaryRatio(b.cogs,b.revenue),diff=current-previous,shown=Math.round(diff*100),cls=shown===0?'':diff<0?'impact-good':'impact-bad';
+    const html=colorNarrativeNumbers(text,cls);
+    if(paragraph.innerHTML!==html)paragraph.innerHTML=html;
+   }else if(text.startsWith('% логистики:')){
+    const current=summaryRatio(a.logistics,a.revenue),previous=summaryRatio(b.logistics,b.revenue),diff=current-previous,shown=Math.round(diff*100),cls=shown===0?'':diff<0?'impact-good':'impact-bad';
+    const html=colorNarrativeNumbers(text,cls);
+    if(paragraph.innerHTML!==html)paragraph.innerHTML=html;
+   }else if(text.startsWith('СПП:')&&a.spp!=null&&b.spp!=null){
+    const diff=a.spp-b.spp,shown=Math.round(diff*100),cls=shown===0?'':diff>0?'impact-good':'impact-bad';
+    const html=colorNarrativeNumbers(text,cls);
+    if(paragraph.innerHTML!==html)paragraph.innerHTML=html;
+   }else if(text.startsWith('ДРР')){
+    const drrA=summaryRatio(a.ads,a.revenue),drrB=summaryRatio(b.ads,b.revenue),diff=drrA-drrB,shown=Math.round(diff*100),cls=shown===0?'':diff<0?'impact-good':'impact-bad';
+    const html=colorNarrativeNumbers(text,cls);
+    if(paragraph.innerHTML!==html)paragraph.innerHTML=html;
+   }else if(text.startsWith('Реклама:')&&text.includes('ДРР')){
+    const html=ownerAdvertisingPaybackNarrative(a,b,!totalCard);
+    if(paragraph.innerHTML!==html)paragraph.innerHTML=html;
+   }
+  }
+  ownerRefineComparisonActions(card,a,b,market);
+ }
+}
+function ownerRefineComparisonActions(card,a,b,market){
+ const list=card.querySelector('details ul');
+ if(!list||!a.revenue||!b.revenue)return;
+ const share=k=>summaryRatio(a[k],a.revenue)-summaryRatio(b[k],b.revenue),logistics=share('logistics'),storage=market==='WB'?share('storage'):0,drr=share('ads'),buyout=a.buyout!=null&&b.buyout!=null?a.buyout-b.buyout:null;
+ let actions=[...list.querySelectorAll('li')].map(x=>x.textContent.trim()).filter(action=>/убыток|убыточ/i.test(action)||!(/логистик|доставк|возврат|выкуп|хранени|ДРР|рекламн|кампан/i.test(action)));
+ if(logistics>=.005&&buyout!=null&&buyout<=-.005)actions.push('Выкуп снизился одновременно с ростом доли логистики. Проверить возвраты, стоимость доставки одной продажи и состав проданных товаров.');
+ else if(logistics>=.005)actions.push('Доля логистики заметно выросла. Сравнить стоимость доставки одной продажи и возвратов, процент выкупа и состав проданных товаров.');
+ if(storage>=.005)actions.push('Доля хранения заметно выросла. Расшифровать начисления по товарам и определить, какие позиции создают рост расходов.');
+ if(drr>=.005)actions.push('ДРР заметно вырос. Проверить прибыль продаж по рекламным кампаниям и сократить расходы, которые не дают достаточного прироста прибыли.');
+ if(buyout!=null&&buyout<=-.005&&logistics<.005)actions.push('Выкуп заметно снизился. Проверить возвраты и одновременно оценить изменение логистики на одну продажу.');
+ actions=[...new Set(actions)];
+ if(!actions.length)actions.push('Существенных ухудшений управляемых показателей не выявлено. Сохранить текущие условия и контролировать прибыль с каждой дополнительной продажи.');
+ const html=actions.map(action=>'<li>'+escapeText(action)+'</li>').join('');
+ if(list.innerHTML!==html)list.innerHTML=html;
+}
+const ownerComparisonNarrativeColors=renderComparison;
+renderComparison=function(){ownerComparisonNarrativeColors();ownerFixComparisonColors();ownerColorComparisonNarratives();queueMicrotask(()=>{ownerFixComparisonColors();ownerColorComparisonNarratives();});};
+
+/* Period-aware overview risks with concrete loss-making positions. */
+function ownerRussianPositions(n){
+ const mod10=n%10,mod100=n%100;
+ if(mod10===1&&mod100!==11)return 'позиция дала';
+ if([2,3,4].includes(mod10)&&![12,13,14].includes(mod100))return 'позиции суммарно дали';
+ return 'позиций суммарно дали';
+}
+v2Risk=function(rs){
+ if(!rs.length)return [];
+ const keys=[...new Set(rs.map(wk))].sort(),medium=keys.length>=3,long=keys.length>=8,products=productAgg(rs).filter(x=>draftReal(x.article)),total=agg(rs),out=[];
+ const add=(score,title,fact,action)=>out.push({score,title,fact,action});
+ const losses=products.filter(x=>x.profit<0).sort((x,y)=>x.profit-y.profit),loss=-sum(losses,'profit'),positive=products.filter(x=>x.profit>0).sort((x,y)=>y.profit-x.profit),gain=sum(positive,'profit');
+ if(losses.length){
+  const names=losses.map(x=>x.article+' · '+x.market).join(', ');
+  add(loss,'Убыточные позиции',losses.length+' '+ownerRussianPositions(losses.length)+' '+money(-loss)+' ('+names+').'+(gain?' Положительный вклад остальных позиций: '+money(gain)+'.':''),'По указанным позициям определить, какая статья сильнее всего ограничивает прибыль: цена, комиссия, логистика, реклама, прочие расходы МП или себестоимость. Решение принимать отдельно по каждой позиции.');
+ }
+ const markets=($('#market').value==='all'?['WB','Ozon']:[$('#market').value]).map(m=>({m,rows:rs.filter(r=>r.market===m)})).filter(x=>x.rows.length).map(x=>({...x,a:agg(x.rows)}));
+ for(const {m,a} of markets){
+  const revenueShare=summaryRatio(a.revenue,total.revenue),expenseShare=summaryRatio(a.expenses,a.revenue);
+  if(a.revenue>0&&a.margin<.1&&revenueShare>=.15){
+   const gap=a.revenue*(.1-a.margin),parts=[['комиссия',summaryRatio(a.commission,a.revenue)],['логистика',summaryRatio(a.logistics,a.revenue)],['ДРР',summaryRatio(a.ads,a.revenue)],['прочие расходы МП',summaryRatio(a.other,a.revenue)]].sort((x,y)=>y[1]-x[1]);
+   add(Math.max(1,gap),'Низкая прибыльность '+m,m+' дал '+money(a.profit)+' прибыли при маржинальности '+pct(a.margin)+'. Расходы МП заняли '+pct(expenseShare)+' выручки; крупнейшие доли: '+parts.slice(0,3).map(x=>x[0]+' '+pct(x[1])).join(', ')+'.','Разобрать прибыльность по товарам '+m+' и начать с крупнейших долей расходов. Проверить, какие комиссии, логистика и рекламные расходы системно оставляют недостаточную прибыль с продажи.');
+  }
+ }
+ if(medium){
+  const recurring=[];
+  for(const x of products){
+   const rows=rs.filter(r=>r.article===x.article&&r.market===x.market),weeks=[...new Set(rows.map(wk))],negativeWeeks=weeks.filter(k=>agg(rows.filter(r=>wk(r)===k)).profit<0).length;
+   if(negativeWeeks>=Math.min(2,keys.length))recurring.push({...x,negativeWeeks});
+  }
+  if(recurring.length)add(recurring.reduce((s,x)=>s+Math.abs(Math.min(0,x.profit)),0)+1,'Повторяющиеся убыточные недели',recurring.length+' '+(recurring.length===1?'позиция была убыточной':'позиции были убыточными')+' как минимум в двух неделях: '+recurring.slice(0,4).map(x=>x.article+' · '+x.market+' — '+x.negativeWeeks).join('; ')+'.','По этим позициям сравнить одинаковые статьи расходов по неделям и определить, какой фактор повторяется. Контроль — прибыль и маржинальность каждой следующей недели.');
+ }
+ if(long&&gain>0&&positive.length>1){const top=positive.slice(0,3),share=sum(top,'profit')/gain;if(share>.6)add(gain*share,'Концентрация прибыли',top.length+' позиции дают '+pct(share)+' положительной прибыли: '+top.map(x=>x.article+' · '+x.market).join(', ')+'. Доля рассчитана до вычета убытков.','Контролировать устойчивость прибыли лидеров и развивать другие позиции только после подтверждения их положительной экономики.');}
+ if(long){const current=rs.filter(r=>keys.slice(-4).includes(wk(r))),prior=rs.filter(r=>keys.slice(-8,-4).includes(wk(r))),a=agg(current),b=agg(prior);if(a.profit<b.profit)add(b.profit-a.profit,'Последние четыре недели слабее предыдущих','Прибыль последних четырёх недель '+money(a.profit)+' против '+money(b.profit)+' за предыдущие четыре недели. Изменение '+signedMoney(a.profit-b.profit)+'.','Открыть факторный анализ этих интервалов и начать с крупнейшего управляемого фактора, который снизил прибыль.');}
+ if(!out.length)add(0,'Запас прочности прибыли','Прибыль '+money(total.profit)+', маржинальность '+pct(total.margin)+'. Убыточных позиций и повторяющихся убыточных недель в выбранном периоде не выявлено.','Контролировать маржинальность, долю расходов МП и прибыль каждой дополнительной продажи.');
+ return out.sort((x,y)=>y.score-x.score).slice(0,3);
+};
+
+/* Overview: keep the original WB/Ozon chart and add their total as a third line. */
+function ownerOverviewCombinedTrend(){
+ const rs=selectedRows(),keys=[...new Set(rs.map(wk))].sort();
+ if(keys.length!==1)return;
+ const scope=ownerScope(),history=[...new Set(raw.map(wk))].sort().filter(k=>k<=keys[0]).slice(-8);
+ const groups=history.map(k=>{
+  const periodRows=scope.filter(r=>wk(r)===k),wbRows=periodRows.filter(r=>r.market==='WB'),ozonRows=periodRows.filter(r=>r.market==='Ozon');
+  return {WB:wbRows.length?sum(wbRows,chartMetric):null,Ozon:ozonRows.length?sum(ozonRows,chartMetric):null,Total:periodRows.length?sum(periodRows,chartMetric):null};
+ });
+ const chart=$('#line-chart'),card=chart?.closest('.card'),keyCard=$('#market-grid')?.closest('.card'),market=$('#market').value;
+ if(!chart||!card||!keyCard)return;
+ const series=market==='all'
+  ?[['WB',a=>a.WB,'#8b5cf6'],['Ozon',a=>a.Ozon,'#20a99a'],['Итого',a=>a.Total,'#172554']]
+  :[[market,a=>a[market],market==='WB'?'#8b5cf6':'#20a99a']];
+ card.querySelector('h3').textContent='Неделя в контексте динамики';
+ card.querySelector('.hint').textContent='';
+ chart.innerHTML=summaryChart(groups,history,series,'money');
+ keyCard.parentElement.insertBefore(card,keyCard);
+}
+const ownerOverviewTrendChart=renderChart;
+renderChart=function(){ownerOverviewTrendChart();ownerOverviewCombinedTrend();};
+const ownerOverviewTrendRender=render;
+render=function(){ownerOverviewTrendRender();queueMicrotask(ownerOverviewCombinedTrend);};
+
+/* Keep the overview chart self-explanatory: no subtitle, branded legend labels. */
+function ownerPolishOverviewTrend(){
+ const card=$('#line-chart')?.closest('.card');
+ if(!card)return;
+ const hint=card.querySelector(':scope > .hint');
+ if(hint)hint.textContent='';
+ const colors={WB:'#8b5cf6',Ozon:'#087b6c','Итого':'#111827'};
+ for(const label of card.querySelectorAll('#line-chart .legend span')){
+  const name=label.textContent.trim();
+  if(colors[name]){label.style.color=colors[name];label.style.fontWeight='700';}
+ }
+}
+const ownerOverviewPolishedChart=renderChart;
+renderChart=function(){ownerOverviewPolishedChart();ownerPolishOverviewTrend();};
+const ownerOverviewPolishedRender=render;
+render=function(){ownerOverviewPolishedRender();queueMicrotask(ownerPolishOverviewTrend);};
+
+/* Use rounded, easy-to-read Y-axis steps in the Overview trend chart. */
+function ownerNiceAxisStep(range){
+ if(!Number.isFinite(range)||range<=0)return 1;
+ const rough=range/3,power=Math.pow(10,Math.floor(Math.log10(rough))),scaled=rough/power;
+ return (scaled<=1?1:scaled<=2?2:scaled<=5?5:10)*power;
+}
+function ownerAxisMoney(value,step){
+ const rounded=Math.round(value);
+ if(step>=1000000)return num(Math.round(rounded/1000000))+' млн ₽';
+ if(step>=1000)return num(Math.round(rounded/1000))+' тыс. ₽';
+ return num(rounded)+' ₽';
+}
+function ownerOverviewNiceChart(groups,keys,series){
+ const values=groups.flatMap(a=>series.map(s=>s[1](a))).filter(v=>v!=null&&Number.isFinite(v));
+ if(!values.length)return '<div class="empty">Нет данных для расчёта</div>';
+ let dataMin=Math.min(0,...values),dataMax=Math.max(0,...values);
+ if(dataMin===dataMax)dataMax=dataMin+1;
+ const step=ownerNiceAxisStep(dataMax-dataMin),min=Math.floor(dataMin/step)*step,max=Math.ceil(dataMax/step)*step||step;
+ const x=i=>76+i*610/Math.max(1,keys.length-1),y=v=>190-(v-min)*165/(max-min);
+ let svg='<svg viewBox="0 0 720 235" role="img" aria-label="Динамика показателей за выбранные недели">';
+ for(let v=min,i=0;v<=max+step/100&&i<8;v+=step,i++)svg+='<line x1="76" x2="686" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#e3e8f2"/><text x="2" y="'+(y(v)+4)+'" class="chart-label">'+escapeText(ownerAxisMoney(v,step))+'</text>';
+ series.forEach(([label,fn,color])=>{let path='',prev=false;groups.forEach((a,i)=>{const v=fn(a);if(v==null||!Number.isFinite(v)){prev=false;return;}path+=(prev?'L':'M')+x(i)+','+y(v)+' ';prev=true;svg+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="4" fill="'+color+'"><title>'+escapeText(keys[i]+' · '+label+': '+money(v))+'</title></circle>';});svg+='<path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>';});
+ keys.forEach((key,i)=>{if(i%Math.max(1,Math.ceil(keys.length/7))===0||i===keys.length-1)svg+='<text x="'+x(i)+'" y="219" text-anchor="middle" class="chart-label">'+escapeText(key.slice(2).replace('-W',' / '))+'</text>';});
+ return svg+'</svg><div class="legend">'+series.map(s=>'<span><i style="background:'+s[2]+'"></i>'+escapeText(s[0])+'</span>').join('')+'</div>';
+}
+function ownerRenderOverviewNiceAxis(){
+ const rs=selectedRows(),weekKeys=[...new Set(rs.map(wk))].sort(),single=weekKeys.length===1,monthly=!single&&($('#period').value==='ytd'||weekKeys.length>12),key=monthly?mo:wk;
+ let source=rs,keys=[...new Set(rs.map(key))].sort();
+ if(single){source=ownerScope();keys=[...new Set(raw.map(wk))].sort().filter(k=>k<=weekKeys[0]).slice(-8);}
+ const groups=keys.map(k=>{const rows=source.filter(r=>key(r)===k),wb=rows.filter(r=>r.market==='WB'),ozon=rows.filter(r=>r.market==='Ozon');return {WB:wb.length?sum(wb,chartMetric):null,Ozon:ozon.length?sum(ozon,chartMetric):null,Total:rows.length?sum(rows,chartMetric):null};});
+ const market=$('#market').value,series=market==='all'?[['WB',a=>a.WB,'#8b5cf6'],['Ozon',a=>a.Ozon,'#20a99a'],['Итого',a=>a.Total,'#172554']]:[[market,a=>a[market],market==='WB'?'#8b5cf6':'#20a99a']];
+ const chart=$('#line-chart'),card=chart?.closest('.card'),keyCard=$('#market-grid')?.closest('.card');
+ if(!chart||!card||!keyCard||!keys.length)return;
+ card.querySelector('h3').textContent=single?'Неделя в контексте динамики':monthly?'Динамика по месяцам':'Динамика выбранных недель';
+ chart.innerHTML=ownerOverviewNiceChart(groups,keys,series);
+ keyCard.parentElement.insertBefore(card,keyCard);
+ ownerPolishOverviewTrend();
+}
+const ownerOverviewNiceAxisChart=renderChart;
+renderChart=function(){ownerOverviewNiceAxisChart();ownerRenderOverviewNiceAxis();};
+const ownerOverviewNiceAxisRender=render;
+render=function(){ownerOverviewNiceAxisRender();queueMicrotask(ownerRenderOverviewNiceAxis);};
+
 })();
 fillArticles();bindDashboardFilters();render();refresh();
 </script>
