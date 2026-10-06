@@ -1307,6 +1307,19 @@ new MutationObserver(()=>{
 }).observe(document.body,{childList:true,subtree:true,characterData:true});
 ownerStripTableCurrency();
 
+/* Comparison: show weighted logistics cost per sold unit after the logistics share. */
+const ownerComparisonTableBase=cmpTable;
+cmpTable=function(a,b,m,ha,hb){
+ const html=ownerComparisonTableBase(a,b,m,ha,hb),host=document.createElement('div');
+ host.innerHTML=html;
+ const logisticsRow=[...host.querySelectorAll('tbody tr')].find(row=>row.children[0]?.textContent.trim()==='Логистика, %');
+ if(logisticsRow){
+  const current=ha?summaryRatio(a.logistics,a.units):null,base=hb?summaryRatio(b.logistics,b.units):null,rate=current!=null&&base>0?(current-base)/base:null;
+  logisticsRow.insertAdjacentHTML('afterend','<tr><td>Логистика Ед</td><td>'+summaryFormat(base,'money')+'</td><td>'+summaryFormat(current,'money')+'</td><td>'+(rate==null?'—':(rate>0?'+':'')+pct(rate))+'</td></tr>');
+ }
+ return host.innerHTML;
+};
+
 /* Comparison: color the displayed change by its expected effect on profit. */
 function ownerComparisonDisplayedDelta(text){
  const normalized=String(text||'').replace(/[\u00a0\u202f\s]/g,'').replace('−','-').replace(',','.');
@@ -1320,7 +1333,7 @@ function ownerComparisonImpact(label,value){
  if(/ДРР/i.test(metric))return value>0?'impact-bad':'impact-good';
  if(['Средний чек / Цена после СПП','Цена после СПП'].includes(metric))return '';
  if(metric==='% выкупа'||metric==='Выкуп')return value>0?'impact-good':'impact-bad';
- const higherRed=/^(Себестоимость Ед\.|Себестоимость, %|Комиссия, %|Логистика, %|Хранение, %|ДРР, %|ДРР, руб|Прочие удержания|% расходов МП|% расходов МП без прочих)$/i.test(metric);
+ const higherRed=/^(Себестоимость Ед\.|Себестоимость, %|Комиссия, %|Логистика, %|Логистика Ед|Хранение, %|ДРР, %|ДРР, руб|Прочие удержания|% расходов МП|% расходов МП без прочих)$/i.test(metric);
  return (higherRed?-value:value)>0?'impact-good':'impact-bad';
 }
 function ownerFixComparisonColors(){
@@ -1343,6 +1356,8 @@ renderComparison=function(){
 const ownerMaterialNarrative=cmpNarrative;
 cmpNarrative=function(a,b,m,ha,hb){
  const n=ownerMaterialNarrative(a,b,m,ha,hb);
+ n.facts=n.facts.filter(fact=>fact!=='Рост средней цены не компенсировал снижение количества: выручка сократилась.');
+ n.actions=n.actions.filter(action=>action!=='Проверить снижение среднего чека / цены единицы.');
  const hasOther=m==='WB'?(Math.abs(a.otherWithholdings||0)>.005||Math.abs(b.otherWithholdings||0)>.005):(Math.abs(a.otherSigned||0)>.005||Math.abs(b.otherSigned||0)>.005);
  if(!hasOther){
   n.facts=n.facts.filter(fact=>!fact.startsWith('Без изменения прочих расходов и начислений'));
@@ -1351,7 +1366,9 @@ cmpNarrative=function(a,b,m,ha,hb){
  if(!ha||!hb||!a.revenue||!b.revenue)return n;
  const share=k=>summaryRatio(a[k],a.revenue)-summaryRatio(b[k],b.revenue);
  const logistics=share('logistics'),storage=m==='WB'?share('storage'):0,drr=share('ads');
+ const logisticsUnitA=summaryRatio(a.logistics,a.units),logisticsUnitB=summaryRatio(b.logistics,b.units),logisticsUnitChange=logisticsUnitA!=null&&logisticsUnitB>0?(logisticsUnitA-logisticsUnitB)/logisticsUnitB:null;
  const buyout=a.buyout!=null&&b.buyout!=null?a.buyout-b.buyout:null;
+ if(logisticsUnitChange!=null&&Math.round(Math.abs(logisticsUnitChange)*100)>0)n.facts.push('Логистика на единицу '+(logisticsUnitChange>0?'выросла':'снизилась')+': '+money(logisticsUnitB)+' → '+money(logisticsUnitA)+' ('+(logisticsUnitChange>0?'+':'')+pct(logisticsUnitChange)+'). '+(logisticsUnitChange>0?(buyout!=null&&buyout<=-.005?'Рост совпал со снижением выкупа и может быть связан с увеличением возвратной логистики.':'Рост стоимости логистики одной продажи снизил прибыль.'):'Снижение стоимости логистики одной продажи поддержало прибыль.'));
  n.actions=n.actions.filter(action=>{
   if(/дол[яию] логистик|стоимость доставки и возвратов|Контролировать логистику/i.test(action))return logistics>=.005;
   if(/хранени/i.test(action))return storage>=.005;
@@ -1458,13 +1475,27 @@ function ownerColorComparisonNarratives(){
 function ownerRefineComparisonActions(card,a,b,market){
  const list=card.querySelector('details ul');
  if(!list||!a.revenue||!b.revenue)return;
+ const title=card.querySelector(':scope > h3')?.textContent.trim()||'',isArticle=!/^Общий итог по площадке/.test(title)&&title!=='Все артикулы — итог';
  const share=k=>summaryRatio(a[k],a.revenue)-summaryRatio(b[k],b.revenue),logistics=share('logistics'),storage=market==='WB'?share('storage'):0,drr=share('ads'),buyout=a.buyout!=null&&b.buyout!=null?a.buyout-b.buyout:null;
- let actions=[...list.querySelectorAll('li')].map(x=>x.textContent.trim()).filter(action=>/убыток|убыточ/i.test(action)||!(/логистик|доставк|возврат|выкуп|хранени|ДРР|рекламн|кампан/i.test(action)));
- if(logistics>=.005&&buyout!=null&&buyout<=-.005)actions.push('Выкуп снизился одновременно с ростом доли логистики. Проверить возвраты, стоимость доставки одной продажи и состав проданных товаров.');
- else if(logistics>=.005)actions.push('Доля логистики заметно выросла. Сравнить стоимость доставки одной продажи и возвратов, процент выкупа и состав проданных товаров.');
+ const logisticsUnitA=summaryRatio(a.logistics,a.units),logisticsUnitB=summaryRatio(b.logistics,b.units),logisticsUnitChange=logisticsUnitA!=null&&logisticsUnitB>0?(logisticsUnitA-logisticsUnitB)/logisticsUnitB:null;
+ const adsDelta=a.ads-b.ads,unitsDelta=a.units-b.units,extraMargin=adsDelta>0&&unitsDelta>0&&a.units>0?unitsDelta*(a.cleanProfit+a.ads)/a.units:0,adShortfall=adsDelta-extraMargin,adIncreaseUnprofitable=adsDelta>0&&adShortfall>.5,profitDrop=b.profit-a.profit,adExplainsLoss=adIncreaseUnprofitable&&a.profit<0&&profitDrop>0&&adShortfall>=profitDrop*.5;
+ let actions=[...list.querySelectorAll('li')].map(x=>x.textContent.trim()).filter(action=>(!adExplainsLoss||!(/Определить, какой управляемый показатель сделал продажи убыточными/i.test(action)))&&(/убыток|убыточ/i.test(action)||!(/логистик|доставк|возврат|выкуп|хранени|ДРР|рекламн|кампан/i.test(action))));
+ if(logisticsUnitChange!=null&&Math.round(logisticsUnitChange*100)>0){
+  const start='Логистика на единицу выросла: '+money(logisticsUnitB)+' → '+money(logisticsUnitA)+' ('+(logisticsUnitChange>0?'+':'')+pct(logisticsUnitChange)+'). ';
+  if(buyout!=null&&buyout<=-.005)actions.push('Выкуп снизился: '+pct(b.buyout)+' → '+pct(a.buyout)+'. Одновременно '+start.toLowerCase()+'Рост затрат может быть связан с возвратной логистикой. Проверить причины невыкупа и стоимость прямой и обратной доставки'+(isArticle?' этого артикула.':', а по площадке также влияние структуры проданных товаров.'));
+  else if(isArticle)actions.push(start+'Проверить изменение тарифа, схему доставки и расходы на возвраты по этому артикулу.');
+  else actions.push(start+'Проверить изменение тарифов, возвраты, схему доставки и влияние структуры проданных товаров на среднее значение.');
+ }else if(logistics>=.005){
+  actions.push((buyout!=null&&buyout<=-.005?'Доля логистики выросла одновременно со снижением выкупа. ':'Доля логистики выросла. ')+(logisticsUnitChange!=null?'Логистика на единицу не выросла. ':'')+'Проверить влияние изменения средней цены и выручки с одной продажи на долю логистики.');
+ }
  if(storage>=.005)actions.push('Доля хранения заметно выросла. Расшифровать начисления по товарам и определить, какие позиции создают рост расходов.');
- if(drr>=.005)actions.push('ДРР заметно вырос. Проверить прибыль продаж по рекламным кампаниям и сократить расходы, которые не дают достаточного прироста прибыли.');
- if(buyout!=null&&buyout<=-.005&&logistics<.005)actions.push('Выкуп заметно снизился. Проверить возвраты и одновременно оценить изменение логистики на одну продажу.');
+ if(drr>=.005){
+  if(adExplainsLoss)actions.push('По расчёту, увеличение рекламы стало основной причиной перехода в убыток: дополнительные расходы '+money(adsDelta)+' превысили расчётную прибыль от прироста продаж '+money(extraMargin)+' на '+money(adShortfall)+'. Сократить или перенастроить кампании и оставить только те, которые дают достаточную прибыль.');
+  else if(adIncreaseUnprofitable)actions.push('Увеличение рекламы не окупилось: дополнительные расходы '+money(adsDelta)+' превысили расчётную прибыль от прироста продаж '+money(extraMargin)+' на '+money(adShortfall)+'. Сократить или перенастроить кампании, которые не дают достаточной прибыли.');
+  else actions.push('ДРР заметно вырос. Проверить прибыль продаж по рекламным кампаниям и сократить расходы, которые не дают достаточного прироста прибыли.');
+ }
+ if(buyout!=null&&buyout<=-.005&&logistics<.005&&!(logisticsUnitChange!=null&&Math.round(logisticsUnitChange*100)>0))actions.push('Выкуп снизился: '+pct(b.buyout)+' → '+pct(a.buyout)+'. Проверить причины невыкупа и расходы на возвраты.');
+ if(actions.length>1)actions=actions.filter(action=>!action.startsWith('Существенных ухудшений управляемых показателей не выявлено.'));
  actions=[...new Set(actions)];
  if(!actions.length)actions.push('Существенных ухудшений управляемых показателей не выявлено. Сохранить текущие условия и контролировать прибыль с каждой дополнительной продажи.');
  const html=actions.map(action=>'<li>'+escapeText(action)+'</li>').join('');
