@@ -1715,6 +1715,16 @@ fillArticles();bindDashboardFilters();render();refresh();
    const heading=card.querySelector(':scope > h3');
    if(!heading)continue;
    const platformGroup=card.closest('.v2-details');
+   if(platformGroup&&!platformGroup.dataset.skuCollapseBound){
+    platformGroup.dataset.skuCollapseBound='true';
+    platformGroup.addEventListener('toggle',event=>{
+     if(event.target!==platformGroup)return;
+     for(const child of platformGroup.querySelectorAll('.ui-sku-group')){
+      child.open=false;
+      expandedSkuGroups.delete(child.dataset.market+'|'+child.dataset.article);
+     }
+    });
+   }
    const platformTitle=platformGroup?.querySelector(':scope > summary')?.textContent||'';
    const market=/\bWB\b/.test(platformTitle)?'WB':/Ozon/i.test(platformTitle)?'Ozon':'';
    if(!market)continue;
@@ -1731,7 +1741,7 @@ fillArticles();bindDashboardFilters();render();refresh();
    const platform=document.createElement('span');platform.className='ui-sku-platform '+(market==='WB'?'ui-sku-wb':'ui-sku-ozon');platform.textContent=platformLabel;
    summary.append(name,document.createTextNode(' · '),platform);group.append(summary);
    card.before(group);group.append(card);
-   group.addEventListener('toggle',()=>{if(!group.isConnected)return;if(group.open)expandedSkuGroups.add(key);else expandedSkuGroups.delete(key);});
+   group.addEventListener('toggle',event=>{if(event.target!==group||!group.isConnected)return;if(group.open)expandedSkuGroups.add(key);else expandedSkuGroups.delete(key);});
   }
  }
  function polishComparison(){
