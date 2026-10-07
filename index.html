@@ -17,7 +17,39 @@ function convert(t,p){return normalize(t,p).map(r=>({market:p==='wb'?'WB':'Ozon'
     @media(max-width:760px){.app{display:block}.side{position:relative;height:auto;padding:18px}.brand{margin-bottom:14px}.filters{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin:0}.side-note{display:none}.main{padding:20px 14px}.topbar{display:block}.badge{display:inline-block;margin-top:12px}.tabs{overflow:auto}.kpis{grid-template-columns:1fr 1fr}.kpi .value{font-size:21px}.insights,.market-grid{grid-template-columns:1fr}.donut-wrap{grid-template-columns:1fr}.donut{margin:auto}.filters .field:last-child{grid-column:1/-1}}
     @media(max-width:440px){.kpis{grid-template-columns:1fr}.filters{grid-template-columns:1fr}.filters .field:last-child{grid-column:auto}.topbar h2{font-size:23px}}
   .donut-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.donut-center span{max-width:82px;font-size:10px}.side-note{overflow-wrap:anywhere}@media(max-width:760px){.side-note{display:block}} .kpi .sub{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.6} .donut.unit-signed:after{display:none}.unit-signed .donut-center{position:static;height:145px;border:1px solid var(--line);border-radius:14px}.unit-signed .donut-center span{max-width:125px} .mp-child{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);margin-top:6px}.mp-child b{font-weight:500}.mp-child span{white-space:nowrap}.table .mp-child{min-width:175px}.expense-row:has(span:first-child){font-weight:600} .summary-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:18px}.summary-charts svg{width:100%;height:auto;margin-top:14px}.summary-market{margin-bottom:30px}.summary-table td:first-child,.summary-table th:first-child{position:sticky;left:0;background:#fff;z-index:1;min-width:230px}.summary-table th:first-child{background:#f7f9fc}.summary-table{max-height:650px}.summary-market>.card>.table-wrap{max-height:650px}.summary-table thead th{z-index:2}@media(max-width:900px){.summary-charts{grid-template-columns:1fr}.summary-table td:first-child,.summary-table th:first-child{min-width:180px;max-width:210px;white-space:normal}} #summary-reconciliation .table-wrap{max-height:300px;overflow-y:scroll;scrollbar-gutter:stable}#summary-reconciliation th{z-index:2}.table-wrap::-webkit-scrollbar{width:12px;height:12px}.table-wrap::-webkit-scrollbar-thumb{background:#a4aec1;border-radius:8px;border:2px solid #f5f7fb}.table-wrap::-webkit-scrollbar-track{background:#f5f7fb} .summary-fold>summary{cursor:pointer;font-size:17px;font-weight:700}.summary-fold[open]>summary{margin-bottom:16px}.summary-fold>.table-wrap{max-height:650px;overflow:auto} [hidden]{display:none!important}.cmp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:20px}.cmp-grid .card{min-width:0}.cmp-grid p,.cmp-grid li{font-size:13px;line-height:1.55}.cmp-table{min-width:580px}.cmp-table td,.cmp-table th{font-size:12px;padding:9px}.cmp-table td:first-child{min-width:165px}.cmp-grid h3{margin-bottom:16px}.cmp-warning{padding:12px;background:#fff4d8;border-radius:9px}.cmp-grid h4{margin-bottom:8px}@media(max-width:1600px){.cmp-grid{grid-template-columns:1fr}} .impact-good{color:#087f5b!important;font-weight:600}.impact-bad{color:#c92a2a!important;font-weight:600} .draft-bar{display:grid;grid-template-columns:minmax(110px,1fr) 2fr 110px;gap:12px;align-items:center;font-size:13px;margin:12px 0}.draft-track{height:14px;position:relative;background:linear-gradient(to right,#f3f5fa 49.7%,#94a3b8 50%,#f3f5fa 50.3%)}.draft-track i{position:absolute;height:100%;border-radius:3px}.draft-bar b{text-align:right}.draft-stack{display:flex;height:26px;border-radius:6px;overflow:hidden}.draft-unit h4{margin:20px 0 12px}.draft-scroll{overflow:auto}.draft-scroll svg{width:100%;display:block}.draft-groups{display:block}.draft-groups>details{margin:12px 0}.draft-groups summary{cursor:pointer;font-weight:700}.draft-groups details[open] summary{margin-bottom:16px}.draft-bridge{margin:16px 0}.cmp-grid details summary{cursor:pointer;color:#536584;margin:12px 0}.draft-unit .metric-row{font-size:12px}.insights{margin-bottom:20px}@media(max-width:760px){.draft-bar{grid-template-columns:100px 1fr 85px;gap:5px;font-size:11px}}.insights{grid-template-columns:1fr 1fr}.v2-event{background:#fff5db;padding:16px;border-radius:10px;font-size:13px;line-height:1.6}.v2-check{color:#8992a3;font-size:12px;margin-top:12px}.v2-pie{width:250px;height:250px;border-radius:50%;margin:20px auto}.v2-pie-layout{display:grid;grid-template-columns:280px 1fr;gap:20px}.v2-flow-labels{display:flex;flex-wrap:wrap;gap:12px;font-size:12px}.v2-toggles{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;margin:14px 0}.v2-details{margin:18px 0}.v2-details summary{cursor:pointer;font-weight:700;margin-bottom:14px}#factor .card{margin:18px 0}#money-stack{overflow:visible}.insight p{line-height:1.6}.insight h4{margin:14px 0 6px}@media(max-width:760px){.v2-pie-layout,.insights{grid-template-columns:1fr}.draft-unit.market-grid{grid-template-columns:1fr}}[hidden]{display:none!important}</style>
-</head>
+<style id="owner-visual-polish">
+.table,.kpi .value,.metric-row b,.insight{font-variant-numeric:tabular-nums lining-nums}
+.table td:not(:first-child),.table th:not(:first-child){text-align:right}
+.kpi .label,.kpi .sub,.card .hint,.legend,.metric-row span{color:#57657d}
+.kpi .sub,.card .hint,.legend{font-size:13px;line-height:1.5}
+#insights .insight p{font-size:14px!important;line-height:1.6!important;color:#49566e!important}
+#insights .insight h4{font-size:15px!important;line-height:1.4;margin:18px 0 6px!important}
+#insights .insight h4:first-of-type{margin-top:10px!important}
+#insights .insight h4:not(:first-of-type){border-top:1px solid #e7ecf4;padding-top:16px}
+#insights .eyebrow{color:#56647e;font-size:12px}
+#comparison-body .cmp-table{font-size:13px}
+#comparison-body p,#comparison-body li{font-size:14px;line-height:1.6}
+#comparison-body .ui-expense-start td,#comparison-body .ui-result-start td{border-top:2px solid #dce4ef;padding-top:13px}
+#comparison-body .ui-profit-row td{background:#edf3fc;font-weight:800;font-size:16px;border-top:2px solid #cbd9ef;padding-top:13px;padding-bottom:13px}
+#comparison-body .ui-profit-row td:first-child{color:#14294c}
+#comparison-body .ui-ad-verdict{display:block;width:fit-content;max-width:100%;margin:10px 0;padding:10px 13px;border-radius:8px;font-weight:700;line-height:1.5}
+#comparison-body .ui-ad-verdict.impact-good{background:#e8f6ee;color:#147349!important;border-left:3px solid #147349}
+#comparison-body .ui-ad-verdict.impact-bad{background:#fff0ed;color:#b33030!important;border-left:3px solid #b33030}
+.ui-filter-toggle{display:none}
+@media(max-width:760px){
+ .side{height:auto!important;position:relative!important;padding:16px!important}
+ .side .brand{margin-bottom:14px}
+ .ui-filter-toggle{display:block;width:100%;background:#182952;border:1px solid #40527c;border-radius:10px;padding:12px;color:#fff;text-align:left;cursor:pointer}
+ .ui-filter-toggle:focus-visible{outline:3px solid #20c9b5;outline-offset:3px}
+ .ui-filter-label{display:flex;justify-content:space-between;font-size:14px;font-weight:700}
+ .ui-filter-summary{display:block;margin-top:6px;font-size:12px;line-height:1.5;color:#cbd5ed}
+ .ui-filter-panel{display:none;padding-top:2px}
+ .side.ui-filters-open .ui-filter-panel{display:block}
+ #comparison-body .ui-profit-row td{font-size:14px}
+}
+</style>
+<style id="owner-ad-paragraph-style">#comparison-body .owner-ad-paragraph{display:block;margin:12px 0;line-height:1.65}#comparison-body .owner-ad-paragraph:first-child{margin-top:0}#comparison-body .owner-ad-paragraph:last-child{margin-bottom:0}</style>
+<style id="owner-sku-group-style">#comparison-body .ui-sku-group{min-width:0;border:1px solid #dce4ef;border-radius:12px;background:#fff;overflow:hidden}#comparison-body .ui-sku-group>summary{padding:15px 18px;margin:0;cursor:pointer;font-size:15px;font-weight:700;color:#172b4d;background:#f7f9fd;line-height:1.5}#comparison-body .ui-sku-group[open]>summary{border-bottom:1px solid #e2e8f3}#comparison-body .ui-sku-group>.card{border:0;box-shadow:none;border-radius:0;margin:0}#comparison-body .ui-sku-platform{display:inline-block;padding:2px 7px;border-radius:6px;font-size:12px}.ui-sku-wb{background:#f0eaff;color:#7346da}.ui-sku-ozon{background:#e4f8f3;color:#087d71}#comparison-body h3[data-ui-market]::after{content:" · " attr(data-ui-market);color:#586780;font-size:14px;font-weight:600}</style><style id="owner-sku-heading-dedup">#comparison-body .ui-sku-group>.card>h3{display:none}</style></head>
 <body>
 <div class="app">
   <aside class="side">
@@ -1386,6 +1418,7 @@ cmpNarrative=function(a,b,m,ha,hb){
 };
 
 function ownerAdvertisingPaybackNarrative(a,b,isArticle){
+ if(a.ads===0&&b.ads===0)return '<b>Реклама.</b> Рекламы не было в обоих периодах. Расчёт окупаемости не требуется.';
  const adsDelta=a.ads-b.ads,unitsDelta=a.units-b.units,drrA=summaryRatio(a.ads,a.revenue),drrB=summaryRatio(b.ads,b.revenue),drrDelta=drrA-drrB;
  const afterPriceA=summaryRatio(a.afterRevenue,a.units),afterPriceB=summaryRatio(b.afterRevenue,b.units),priceDelta=afterPriceA-afterPriceB,pricePct=afterPriceB?priceDelta/afterPriceB:0;
  const adTone=adsDelta>0?'impact-bad':adsDelta<0?'impact-good':'',unitTone=unitsDelta>0?'impact-good':unitsDelta<0?'impact-bad':'',drrTone=Math.round(drrDelta*100)===0?'':drrDelta<0?'impact-good':'impact-bad';
@@ -1430,11 +1463,11 @@ function ownerAdvertisingPaybackNarrative(a,b,isArticle){
  else if(unitsDelta>0)html+='Средняя цена после СПП существенно не изменилась, а расходы на рекламу не выросли. Рост количества мог быть связан с другими факторами спроса.';
  else if(unitsDelta<0)html+='Средняя цена после СПП существенно не изменилась, а количество продаж сократилось.';
  else html+='Средняя цена после СПП и количество продаж существенно не изменились.';
- return html;
+ return '<span class="owner-ad-paragraph">'+html.replace(/(?=Если условно считать|Расходы на рекламу выросли на|Расходы на рекламу снизились на|Расходы на рекламу не изменились\.|Средняя цена после СПП|При этом реклама могла|При этом сокращение рекламы)/g,'</span><span class="owner-ad-paragraph">')+'</span>';
 }
 
 function ownerColorComparisonNarratives(){
- for(const card of $$('#comparison-body .cmp-grid > .card, #comparison-body > article.card')){
+  for(const card of $$('#comparison-body .cmp-grid .card, #comparison-body > article.card')){
   const title=card.querySelector(':scope > h3')?.textContent.trim();
   const detailTitle=card.closest('.v2-details')?.querySelector(':scope > summary')?.textContent||'';
   let heading=(card.closest('.v2-details')||card).previousElementSibling;
@@ -1629,5 +1662,111 @@ render=function(){ownerOverviewNiceAxisRender();queueMicrotask(ownerRenderOvervi
 })();
 fillArticles();bindDashboardFilters();render();refresh();
 </script>
+<script id="owner-visual-polish-script">
+(function(){
+const expandedSkuGroups=new Set();
+ function groupComparisonArticles(root){
+  for(const card of root.querySelectorAll('.cmp-grid .card')){
+   const heading=card.querySelector(':scope > h3');
+   if(!heading)continue;
+   const platformGroup=card.closest('.v2-details');
+   const platformTitle=platformGroup?.querySelector(':scope > summary')?.textContent||'';
+   const market=/\bWB\b/.test(platformTitle)?'WB':/Ozon/i.test(platformTitle)?'Ozon':'';
+   if(!market)continue;
+   const platformLabel=market==='WB'?'ВБ':'Ozon';
+   const article=heading.textContent.trim(),key=market+'|'+article;
+   heading.dataset.uiMarket=platformLabel;
+   heading.setAttribute('aria-label',article+' · '+platformLabel);
+   if(card.parentElement.classList.contains('ui-sku-group'))continue;
+   const group=document.createElement('details');group.className='ui-sku-group';
+   group.dataset.market=market;group.dataset.article=article;group.open=expandedSkuGroups.has(key);
+   const summary=document.createElement('summary');
+   const name=document.createElement('span');name.className='ui-sku-name';name.textContent=article;
+   const platform=document.createElement('span');platform.className='ui-sku-platform '+(market==='WB'?'ui-sku-wb':'ui-sku-ozon');platform.textContent=platformLabel;
+   summary.append(name,document.createTextNode(' · '),platform);group.append(summary);
+   card.before(group);group.append(card);
+   group.addEventListener('toggle',()=>{if(!group.isConnected)return;if(group.open)expandedSkuGroups.add(key);else expandedSkuGroups.delete(key);});
+  }
+ }
+ function polishComparison(){
+  const root=document.querySelector('#comparison-body');if(!root)return;
+   for(const unit of root.querySelectorAll('p')){
+    if(!/^Логистика на единицу/.test(unit.textContent.trim()))continue;
+    const tone=/^Логистика на единицу снизилась/.test(unit.textContent.trim())?'impact-good':'impact-bad';
+    for(const span of [...unit.querySelectorAll('span.impact-good,span.impact-bad')])span.replaceWith(...span.childNodes);
+    const textNodes=document.createTreeWalker(unit,NodeFilter.SHOW_TEXT);const targets=[];let textNode;
+    while(textNode=textNodes.nextNode())targets.push(textNode);
+    const indicator=/[-+−]?\d[\d\s\u00a0\u202f.,]*\s*₽\s*→\s*[-+−]?\d[\d\s\u00a0\u202f.,]*\s*₽\s*\([-+−]?[\d.,]+%\)\.?/g;
+    for(const target of targets){
+     const value=target.nodeValue;indicator.lastIndex=0;let match,last=0;const fragment=document.createDocumentFragment();
+     while(match=indicator.exec(value)){fragment.append(document.createTextNode(value.slice(last,match.index)));const span=document.createElement('span');span.className=tone;span.textContent=match[0];fragment.append(span);last=indicator.lastIndex;}
+     if(last){fragment.append(document.createTextNode(value.slice(last)));target.replaceWith(fragment);}
+    }
+    const siblings=[...unit.parentElement.children];
+    const share=siblings.find(el=>el.tagName==='P'&&/^% логистики:/.test(el.textContent.trim()));
+    const advertising=siblings.find(el=>el.tagName==='P'&&el.textContent.includes('Анализ окупаемости рекламы.'));
+    if(share)share.after(unit);
+    else if(advertising)advertising.before(unit);
+   }
+   for(const row of root.querySelectorAll('.cmp-table tbody tr')){
+   const label=row.cells[0]?.textContent.trim()||'';
+   row.classList.toggle('ui-profit-row',/^прибыль$/i.test(label));
+   row.classList.toggle('ui-expense-start',/^Себестоимость\s*(Ед|на)/i.test(label));
+   row.classList.toggle('ui-result-start',/^Маржинальность$/i.test(label));
+  }
+  for(const span of root.querySelectorAll('span.impact-good,span.impact-bad')){
+   const text=span.textContent;
+   if(/реклам/i.test(text)&&/окупил|оправдан|невыгод/i.test(text))span.classList.add('ui-ad-verdict');
+  }
+  groupComparisonArticles(root);
+ }
+ const side=document.querySelector('.side'),brand=side.querySelector('.brand');
+ const panel=document.createElement('div');panel.className='ui-filter-panel';panel.id='ui-filter-panel';
+ for(const child of [...side.children])if(child!==brand)panel.appendChild(child);
+ const button=document.createElement('button');button.type='button';button.className='ui-filter-toggle';button.setAttribute('aria-controls',panel.id);button.setAttribute('aria-expanded','false');
+ button.innerHTML='<span class="ui-filter-label">Фильтры <span class="ui-filter-arrow" aria-hidden="true">▾</span></span><span class="ui-filter-summary"></span>';
+ side.append(button,panel);
+ button.addEventListener('click',()=>{const open=side.classList.toggle('ui-filters-open');button.setAttribute('aria-expanded',String(open));button.querySelector('.ui-filter-arrow').textContent=open?'▴':'▾';});
+ function updateFilterSummary(){
+  const text=id=>document.getElementById(id)?.selectedOptions?.[0]?.textContent||'';
+  const comparison=document.querySelector('#comparison')?.classList.contains('active');
+  const period=comparison?text('cmp-base')+' → '+text('cmp-current'):text('period');
+  button.querySelector('.ui-filter-summary').textContent=[text('market'),period,text('search')].filter(Boolean).join(' · ');
+ }
+ side.addEventListener('change',()=>queueMicrotask(updateFilterSummary));
+ for(const tab of document.querySelectorAll('.tab'))tab.addEventListener('click',()=>queueMicrotask(updateFilterSummary));
+ const priorComparison=renderComparison;
+ renderComparison=function(){const result=priorComparison.apply(this,arguments);polishComparison();queueMicrotask(polishComparison);updateFilterSummary();return result;};
+ const priorRender=render;
+ render=function(){const result=priorRender.apply(this,arguments);updateFilterSummary();return result;};
+ polishComparison();queueMicrotask(polishComparison);updateFilterSummary();
+const comparisonStorageKey='mp-owner-finance-dashboard:comparison:'+location.pathname;
+ let comparisonSettings={};
+ try{comparisonSettings=JSON.parse(localStorage.getItem(comparisonStorageKey)||'{}')||{};}catch(e){}
+ if(typeof comparisonSettings!=='object'||Array.isArray(comparisonSettings))comparisonSettings={};
+ const setAvailable=(id,value)=>{const el=document.getElementById(id);if(el&&[...el.options].some(o=>o.value===value))el.value=value;};
+ const originalComparisonOptions=cmpOptions;
+ cmpOptions=function(){
+  originalComparisonOptions();
+  const type=document.getElementById('cmp-type').value,pair=comparisonSettings.periods?.[type];
+  if(pair){setAvailable('cmp-current',pair.current);setAvailable('cmp-base',pair.base);}
+ };
+ setAvailable('cmp-type',comparisonSettings.type);
+ setAvailable('cmp-detail',comparisonSettings.detail);
+ cmpOptions();syncComparisonUI();updateFilterSummary();
+ side.addEventListener('change',event=>{
+  if(!['cmp-type','cmp-current','cmp-base','cmp-detail'].includes(event.target.id))return;
+  const type=document.getElementById('cmp-type').value;
+  const periods=comparisonSettings.periods;
+  if(!periods||typeof periods!=='object'||Array.isArray(periods))comparisonSettings.periods={};
+  comparisonSettings.type=type;
+  comparisonSettings.detail=document.getElementById('cmp-detail').value;
+  comparisonSettings.periods[type]={current:document.getElementById('cmp-current').value,base:document.getElementById('cmp-base').value};
+  try{localStorage.setItem(comparisonStorageKey,JSON.stringify(comparisonSettings));}catch(e){}
+  updateFilterSummary();
+ });
+})();
+</script>
 </body>
 </html>
+
