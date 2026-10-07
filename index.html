@@ -1419,14 +1419,17 @@ cmpNarrative=function(a,b,m,ha,hb){
 
 function ownerAdvertisingPaybackNarrative(a,b,isArticle){
  if(a.ads===0&&b.ads===0)return '<b>Реклама.</b> Рекламы не было в обоих периодах. Расчёт окупаемости не требуется.';
- if(b.ads>0&&Math.abs(a.ads-b.ads)<b.ads*.02){
+ if(b.ads>0&&Math.abs(a.ads-b.ads)<=b.ads*.05){
   const adChange=(a.ads-b.ads)/b.ads*100;
-  let note='<b>Реклама.</b> Расходы: '+money(b.ads)+' → '+money(a.ads)+'. Изменение '+(adChange>0?'+':'')+adChange.toLocaleString('ru-RU',{maximumFractionDigits:2})+'% — менее 2%. Бюджет почти не изменился, поэтому расчёт окупаемости изменения рекламы не выполняется.';
+  let note='<b>Реклама.</b> Расходы: '+money(b.ads)+' → '+money(a.ads)+'. Изменение '+(adChange>0?'+':'')+adChange.toLocaleString('ru-RU',{maximumFractionDigits:2})+'% — не более 5%. Изменение расходов на рекламу несущественное, поэтому расчёт окупаемости не выполняется.';
   const currentPrice=summaryRatio(a.afterRevenue,a.units),previousPrice=summaryRatio(b.afterRevenue,b.units);
   if(currentPrice!=null&&previousPrice!=null){
    note+='<span class="owner-ad-paragraph">Средняя цена после СПП: '+money(previousPrice)+' → '+money(currentPrice)+'. ';
-   if(a.units>b.units&&currentPrice<previousPrice)note+='Количество продаж выросло при снижении цены. Более низкая цена могла поддержать рост продаж; относить весь рост к почти неизменному рекламному бюджету оснований нет.';
-   else note+='Изменение продаж нужно оценивать вместе с ценой, наличием товара и другими факторами спроса.';
+   const significantPrice=previousPrice>0&&Math.abs(currentPrice-previousPrice)>=previousPrice*.05;
+   if(significantPrice&&a.units>b.units&&currentPrice<previousPrice)note+='Количество продаж выросло при существенном снижении цены. Более низкая цена могла поддержать рост продаж; относить весь рост к почти неизменному рекламному бюджету оснований нет.';
+   else if(significantPrice&&a.units<b.units&&currentPrice>previousPrice)note+='Количество продаж снизилось при существенном росте цены. Более высокая цена могла ограничить спрос; это требует проверки.';
+   else if(!significantPrice)note+='Изменение цены менее 5% и считается несущественным. Причины изменения продаж нужно проверить по наличию товара и другим данным о спросе.';
+   else note+='Изменение продаж нужно оценивать вместе с наличием товара и другими факторами спроса.';
    note+='</span>';
   }
   return note;
@@ -1456,7 +1459,7 @@ function ownerAdvertisingPaybackNarrative(a,b,isArticle){
    html+='Расходы на рекламу снизились на '+colorNarrativeNumbers(money(savings),'impact-good')+', а количество продаж '+(unitsDelta>0?'выросло':'не снизилось')+'. Потери маржи из-за сокращения количества нет. <span class="impact-good">При таком результате снижение рекламы'+(isArticle?' на данный артикул':'')+' было финансово оправданным.</span> ';
   }
  }else html+='Расходы на рекламу не изменились. Оценивать окупаемость увеличения бюджета в этом сравнении не требуется. ';
- if(afterPriceA!=null&&afterPriceB!=null&&Math.abs(pricePct)>.005){
+ if(afterPriceA!=null&&afterPriceB>0&&Math.abs(priceDelta)>=afterPriceB*.05){
   const priceTone=priceDelta<0?'impact-bad':'impact-good',direction=priceDelta<0?'снизилась':'выросла';
   html+='Средняя цена после СПП '+direction+': '+colorNarrativeNumbers(money(afterPriceB)+' → '+money(afterPriceA)+' ('+(pricePct>0?'+':'')+pct(pricePct)+')',priceTone)+'. ';
   if(priceDelta<0&&unitsDelta>0&&adsDelta>0){
@@ -1523,7 +1526,7 @@ function ownerRefineComparisonActions(card,a,b,market){
  const title=card.querySelector(':scope > h3')?.textContent.trim()||'',isArticle=!/^Общий итог по площадке/.test(title)&&title!=='Все артикулы — итог';
  const share=k=>summaryRatio(a[k],a.revenue)-summaryRatio(b[k],b.revenue),logistics=share('logistics'),storage=market==='WB'?share('storage'):0,drr=share('ads'),buyout=a.buyout!=null&&b.buyout!=null?a.buyout-b.buyout:null;
  const logisticsUnitA=summaryRatio(a.logistics,a.units),logisticsUnitB=summaryRatio(b.logistics,b.units),logisticsUnitChange=logisticsUnitA!=null&&logisticsUnitB>0?(logisticsUnitA-logisticsUnitB)/logisticsUnitB:null;
- const adsDelta=a.ads-b.ads,unitsDelta=a.units-b.units,extraMargin=adsDelta>0&&unitsDelta>0&&a.units>0?unitsDelta*(a.cleanProfit+a.ads)/a.units:0,adShortfall=adsDelta-extraMargin,adIncreaseUnprofitable=adsDelta>0&&!(b.ads>0&&Math.abs(adsDelta)<b.ads*.02)&&adShortfall>.5,profitDrop=b.profit-a.profit,adExplainsLoss=adIncreaseUnprofitable&&a.profit<0&&profitDrop>0&&adShortfall>=profitDrop*.5;
+ const adsDelta=a.ads-b.ads,unitsDelta=a.units-b.units,extraMargin=adsDelta>0&&unitsDelta>0&&a.units>0?unitsDelta*(a.cleanProfit+a.ads)/a.units:0,adShortfall=adsDelta-extraMargin,adIncreaseUnprofitable=adsDelta>0&&!(b.ads>0&&Math.abs(adsDelta)<=b.ads*.05)&&adShortfall>.5,profitDrop=b.profit-a.profit,adExplainsLoss=adIncreaseUnprofitable&&a.profit<0&&profitDrop>0&&adShortfall>=profitDrop*.5;
  let actions=[...list.querySelectorAll('li')].map(x=>x.textContent.trim()).filter(action=>(!adExplainsLoss||!(/Определить, какой управляемый показатель сделал продажи убыточными/i.test(action)))&&(/убыток|убыточ/i.test(action)||!(/логистик|доставк|возврат|выкуп|хранени|ДРР|рекламн|кампан/i.test(action))));
  if(logisticsUnitChange!=null&&Math.round(logisticsUnitChange*100)>0){
   const start='Логистика на единицу выросла: '+money(logisticsUnitB)+' → '+money(logisticsUnitA)+' ('+(logisticsUnitChange>0?'+':'')+pct(logisticsUnitChange)+'). ';
