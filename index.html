@@ -49,7 +49,7 @@ function convert(t,p){return normalize(t,p).map(r=>({market:p==='wb'?'WB':'Ozon'
 }
 </style>
 <style id="owner-ad-paragraph-style">#comparison-body .owner-ad-paragraph{display:block;margin:12px 0;line-height:1.65}#comparison-body .owner-ad-paragraph:first-child{margin-top:0}#comparison-body .owner-ad-paragraph:last-child{margin-bottom:0}</style>
-<style id="owner-sku-group-style">#comparison-body .ui-sku-group{min-width:0;border:1px solid #dce4ef;border-radius:12px;background:#fff;overflow:hidden}#comparison-body .ui-sku-group>summary{padding:15px 18px;margin:0;cursor:pointer;font-size:15px;font-weight:700;color:#172b4d;background:#f7f9fd;line-height:1.5}#comparison-body .ui-sku-group[open]>summary{border-bottom:1px solid #e2e8f3}#comparison-body .ui-sku-group>.card{border:0;box-shadow:none;border-radius:0;margin:0}#comparison-body .ui-sku-platform{display:inline-block;padding:2px 7px;border-radius:6px;font-size:12px}.ui-sku-wb{background:#f0eaff;color:#7346da}.ui-sku-ozon{background:#e4f8f3;color:#087d71}#comparison-body h3[data-ui-market]::after{content:" · " attr(data-ui-market);color:#586780;font-size:14px;font-weight:600}</style><style id="owner-sku-heading-dedup">#comparison-body .ui-sku-group>.card>h3{display:none}</style><style id="owner-sku-columns-style">#comparison-body .cmp-grid{grid-template-columns:minmax(0,1fr)!important;align-items:start}#comparison-body .ui-sku-columns{display:grid;grid-template-columns:calc(clamp(460px,34%,520px) + 48px) minmax(0,1fr);gap:24px;align-items:start}#comparison-body .ui-sku-columns>.table-wrap{min-width:0;margin:0;overflow-x:auto}#comparison-body .ui-sku-columns .cmp-table{min-width:508px}#comparison-body .ui-sku-columns>.ui-sku-explanation{min-width:0;margin:0;padding-left:24px;border-left:1px solid #e3e9f3}#comparison-body .ui-sku-explanation>summary{font-size:16px;font-weight:700;margin:0 0 14px;line-height:1.5}#comparison-body .ui-sku-explanation p{overflow-wrap:anywhere}@media(min-width:1400px){#comparison-body .ui-sku-explanation>summary{pointer-events:none;list-style:none;color:#172b4d}#comparison-body .ui-sku-explanation>summary::marker{content:""}#comparison-body .ui-sku-explanation>summary::-webkit-details-marker{display:none}}@media(max-width:1399px){#comparison-body .ui-sku-columns{grid-template-columns:minmax(0,1fr);gap:18px}#comparison-body .ui-sku-columns>.ui-sku-explanation{padding-left:0;padding-top:14px;border-left:0;border-top:1px solid #e3e9f3}#comparison-body .ui-sku-explanation>summary{cursor:pointer;color:#4263eb}}</style><style id="owner-sku-table-proportions">#comparison-body .ui-sku-columns .cmp-table{table-layout:fixed;width:100%}#comparison-body .ui-sku-columns .cmp-table th:first-child,#comparison-body .ui-sku-columns .cmp-table td:first-child{width:var(--sku-name-width,40%);min-width:0;white-space:normal;overflow-wrap:anywhere}#comparison-body .ui-sku-columns .cmp-table th:not(:first-child),#comparison-body .ui-sku-columns .cmp-table td:not(:first-child){width:var(--sku-value-width,20%)}</style></head>
+<style id="owner-sku-group-style">#comparison-body .ui-sku-group{min-width:0;border:1px solid #dce4ef;border-radius:12px;background:#fff;overflow:hidden}#comparison-body .ui-sku-group>summary{padding:15px 18px;margin:0;cursor:pointer;font-size:15px;font-weight:700;color:#172b4d;background:#f7f9fd;line-height:1.5}#comparison-body .ui-sku-group[open]>summary{border-bottom:1px solid #e2e8f3}#comparison-body .ui-sku-group>.card{border:0;box-shadow:none;border-radius:0;margin:0}#comparison-body .ui-sku-platform{display:inline-block;padding:2px 7px;border-radius:6px;font-size:12px}.ui-sku-wb{background:#f0eaff;color:#7346da}.ui-sku-ozon{background:#e4f8f3;color:#087d71}#comparison-body h3[data-ui-market]::after{content:" · " attr(data-ui-market);color:#586780;font-size:14px;font-weight:600}</style><style id="owner-sku-heading-dedup">#comparison-body .ui-sku-group>.card>h3{display:none}</style><style id="owner-sku-columns-style">#comparison-body .cmp-grid{grid-template-columns:minmax(0,1fr)!important;align-items:start}#comparison-body .ui-sku-columns{display:grid;grid-template-columns:calc(clamp(460px,34%,520px) + 48px) minmax(0,1fr);gap:24px;align-items:start}#comparison-body .ui-sku-columns>.table-wrap{min-width:0;margin:0;overflow-x:auto}#comparison-body .ui-sku-columns .cmp-table{min-width:508px}#comparison-body .ui-sku-columns>.ui-sku-explanation{min-width:0;margin:0;padding-left:24px;border-left:1px solid #e3e9f3}#comparison-body .ui-sku-explanation>summary{font-size:16px;font-weight:700;margin:0 0 14px;line-height:1.5}#comparison-body .ui-sku-explanation p{overflow-wrap:anywhere}@media(min-width:1400px){#comparison-body .ui-sku-explanation>summary{pointer-events:none;list-style:none;color:#172b4d}#comparison-body .ui-sku-explanation>summary::marker{content:""}#comparison-body .ui-sku-explanation>summary::-webkit-details-marker{display:none}}@media(max-width:1399px){#comparison-body .ui-sku-columns{grid-template-columns:minmax(0,1fr);gap:18px}#comparison-body .ui-sku-columns>.ui-sku-explanation{padding-left:0;padding-top:14px;border-left:0;border-top:1px solid #e3e9f3}#comparison-body .ui-sku-explanation>summary{cursor:pointer;color:#4263eb}}</style><style id="owner-sku-table-proportions">#comparison-body .ui-sku-columns .cmp-table{table-layout:fixed;width:100%}#comparison-body .ui-sku-columns .cmp-table th:first-child,#comparison-body .ui-sku-columns .cmp-table td:first-child{width:var(--sku-name-width,40%);min-width:0;white-space:normal;overflow-wrap:anywhere}#comparison-body .ui-sku-columns .cmp-table th:not(:first-child),#comparison-body .ui-sku-columns .cmp-table td:not(:first-child){width:var(--sku-value-width,20%)}</style><style id="owner-platform-total-layout">#comparison-body .ui-sku-columns>h3{grid-column:1 / -1;margin-bottom:0}#dataset-coverage{display:inline-block;margin-top:6px;line-height:1.6}</style></head>
 <body>
 <div class="app">
   <aside class="side">
@@ -60,7 +60,7 @@ function convert(t,p){return normalize(t,p).map(r=>({market:p==='wb'?'WB':'Ozon'
       <div class="field"><label for="period">Период</label><select id="period"><option value="last">Последняя неделя</option><option value="4w">Последние 4 недели</option><option value="month">Последний месяц с данными</option><option value="ytd">С начала года</option><option value="customWeek">Выбрать недели</option><option value="customMonth">Выбрать месяцы</option></select></div>
       <div class="field" id="pick-field" hidden><label for="pick">Периоды (Ctrl — несколько)</label><select id="pick" multiple size="5"></select></div><div class="field"><label for="search">Артикул</label><select id="search"><option value="">Все артикулы</option></select></div>
     </div>
-    <div id="cmp-filters" hidden><div class="filter-title">Периоды для сравнения</div><div class="field"><label>Тип периода</label><select id="cmp-type"><option value="week">Недели</option><option value="month">Месяцы</option><option value="year">Годы</option></select></div><div class="field"><label>Отчётный период</label><select id="cmp-current"></select></div><div class="field"><label>Базовый период</label><select id="cmp-base"></select></div><div class="field"><label>Детализация</label><select id="cmp-detail"><option value="detail">Все артикулы — детализация</option><option value="total">Все артикулы — итог</option></select></div></div><div class="side-note"><span class="dot"></span><span id="sync">Снимок от 24.09.2026</span><br>Обновление только при открытии файла.</div>
+    <div id="cmp-filters" hidden><div class="filter-title">Периоды для сравнения</div><div class="field"><label>Тип периода</label><select id="cmp-type"><option value="week">Недели</option><option value="month">Месяцы</option><option value="year">Годы</option></select></div><div class="field"><label>Отчётный период</label><select id="cmp-current"></select></div><div class="field"><label>Базовый период</label><select id="cmp-base"></select></div><div class="field"><label>Детализация</label><select id="cmp-detail"><option value="detail">Все артикулы — детализация</option><option value="total">Все артикулы — итог</option></select></div></div><div class="side-note"><span class="dot"></span><span id="sync">Снимок от 24.09.2026</span><br><span id="dataset-coverage"></span></div>
   </aside>
   <main class="main">
     <header class="topbar"><div><h2>Финансовый дашборд собственника</h2><p id="period-caption">WB + Ozon · 38-я неделя 2026 года</p></div><div class="badge">Локальный HTML · Google Sheets</div></header>
@@ -1754,6 +1754,10 @@ fillArticles();bindDashboardFilters();render();refresh();
     if(share)share.after(unit);
     else if(advertising)advertising.before(unit);
    }
+   for(const card of root.querySelectorAll(':scope > article.card')){
+    const heading=card.querySelector(':scope > h3');
+    if(heading&&/^(Общий итог по площадке|Итог по выбранному артикулу)/.test(heading.textContent.trim()))layoutSkuCard(card,'total|'+heading.textContent.trim());
+   }
    for(const row of root.querySelectorAll('.cmp-table tbody tr')){
    const label=row.cells[0]?.textContent.trim()||'';
    row.classList.toggle('ui-profit-row',/^прибыль$/i.test(label));
@@ -1779,13 +1783,28 @@ fillArticles();bindDashboardFilters();render();refresh();
   const period=comparison?text('cmp-base')+' → '+text('cmp-current'):text('period');
   button.querySelector('.ui-filter-summary').textContent=[text('market'),period,text('search')].filter(Boolean).join(' · ');
  }
+ function datasetCoverage(rows){
+  const valid=rows.filter(row=>Number.isInteger(row.year)&&Number.isInteger(row.week)&&row.week>=1&&row.week<=53);
+  if(!valid.length)return null;
+  const latest=valid.reduce((best,row)=>row.year>best.year||(row.year===best.year&&row.week>best.week)?row:best);
+  const end=new Date(Date.UTC(latest.year,0,4));
+  end.setUTCDate(end.getUTCDate()-((end.getUTCDay()+6)%7)+(latest.week-1)*7+6);
+  return {week:latest.week,endDate:end.toLocaleDateString('ru-RU',{timeZone:'UTC',day:'2-digit',month:'2-digit',year:'2-digit'})};
+ }
+ function updateCoverageDate(){
+  const label=document.getElementById('dataset-coverage');if(!label)return;
+  const coverage=datasetCoverage(raw);
+  if(!coverage){label.textContent='Период данных не определён';return;}
+  label.replaceChildren(document.createTextNode('Данные по '+coverage.week+' неделю'),document.createElement('br'),document.createTextNode('(до '+coverage.endDate+' включительно)'));
+ }
  side.addEventListener('change',()=>queueMicrotask(updateFilterSummary));
  for(const tab of document.querySelectorAll('.tab'))tab.addEventListener('click',()=>queueMicrotask(updateFilterSummary));
  const priorComparison=renderComparison;
  renderComparison=function(){const result=priorComparison.apply(this,arguments);polishComparison();queueMicrotask(polishComparison);updateFilterSummary();return result;};
  const priorRender=render;
- render=function(){const result=priorRender.apply(this,arguments);updateFilterSummary();return result;};
+ render=function(){const result=priorRender.apply(this,arguments);updateFilterSummary();updateCoverageDate();return result;};
  polishComparison();queueMicrotask(polishComparison);updateFilterSummary();
+ updateCoverageDate();
 const comparisonStorageKey='mp-owner-finance-dashboard:comparison:'+location.pathname;
  let comparisonSettings={};
  try{comparisonSettings=JSON.parse(localStorage.getItem(comparisonStorageKey)||'{}')||{};}catch(e){}
