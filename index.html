@@ -1518,7 +1518,71 @@ function ownerColorComparisonNarratives(){
    }
   }
   ownerRefineComparisonActions(card,a,b,market);
+  ownerDecisionNarrative(card,a,b,market,current,base);
  }
+}
+function ownerDecisionNarrative(card,a,b,market,current,base){
+ const box=card.querySelector(':scope > details');
+ if(!box)return;
+ const esc=escapeText, colored=v=>'<b class="'+(v>.5?'impact-good':v<-.5?'impact-bad':'')+'">'+esc(signedMoney(v))+'</b>';
+ const delta=a.profit-b.profit,unitA=a.units>0?a.profit/a.units:null,unitB=b.units>0?b.profit/b.units:null;
+ const names=[...new Set([...current,...base].map(r=>r.article))];
+ const rows=names.map(name=>v3Factors(current.filter(r=>r.article===name),base.filter(r=>r.article===name)));
+ const labels=['Количество продаж','Средняя цена продавца','Комиссия','Логистика','Хранение','Реклама','Прочие расходы и начисления','Налоги','Себестоимость'];
+ const factors=labels.map((label,i)=>({label,i,value:rows.reduce((s,r)=>s+r.values[i],0)}));
+ const residual=delta-factors.reduce((s,f)=>s+f.value,0),valid=Math.abs(residual)<=Math.max(2,2*(current.length+base.length));
+ const same=$('#cmp-current').value===$('#cmp-base').value;
+ const incomplete=new Set(current.map(wk)).size!==new Set(base.map(wk)).size;
+ const missingSales=names.some(name=>{const qa=sum(current.filter(r=>r.article===name),'units'),qb=sum(base.filter(r=>r.article===name),'units');return (qa>0)!==(qb>0);});
+ if(missingSales)factors[1].label='Средняя цена / выручка позиций без продаж в одном периоде';
+ const leaders=factors.filter(f=>Math.abs(f.value)>=.5).sort((x,y)=>Math.abs(y.value)-Math.abs(x.value)).slice(0,3);
+ const remainder=delta-leaders.reduce((s,f)=>s+f.value,0);
+ const priceA=a.units>0?a.revenue/a.units:null,priceB=b.units>0?b.revenue/b.units:null;
+ const priceSignificant=priceA!=null&&priceB>0&&Math.abs(priceA-priceB)>=priceB*.05;
+ const isArticle=!/^Общий итог по площадке/.test(card.querySelector(':scope > h3')?.textContent||'')&&names.length===1;
+ let headline=delta<-.5?(a.units>b.units?'Продаж стало больше, но общая прибыль снизилась.':'Прибыль снизилась — определите, какие потери можно устранить первыми.'):delta>.5?(unitA!=null&&unitB!=null&&unitA<unitB?'Прибыль выросла за счёт большего объёма, но средний результат одной продажи снизился.':'Общая прибыль выросла. Проверьте, какие улучшения можно сохранить.'):'Общая прибыль практически не изменилась.';
+ if(a.profit<0)headline='Продажи за период дали убыток. Прежде чем продавать больше, разберитесь, какая цена и какие расходы позволят зарабатывать'+(isArticle?' на этом товаре.':' на каждом товаре.');
+ if(same)headline='Выбран один и тот же период — сравнивать изменения не требуется.';
+ const block=(title,body)=>'<section class="owner-decision-section" style="margin:0 0 16px"><h4 style="margin:0 0 7px">'+title+'</h4><div style="line-height:1.65">'+body+'</div></section>';
+ let html=block('Главный вывод','<strong>'+headline+'</strong><br>Прибыль: '+esc(money(b.profit))+' → '+esc(money(a.profit))+'. Изменение: '+colored(delta)+'.'+(unitA!=null&&unitB!=null?'<br>Средняя прибыль на проданную единицу: '+esc(money(unitB))+' → '+esc(money(unitA))+'.':''));
+ if(!same){
+  html+=block('Что изменило прибыль (факторный анализ)',leaders.length?leaders.map(f=>esc(f.label)+': '+colored(f.value)).join('<br>')+(Math.abs(remainder)>=.5?'<br>Остальные изменения'+(!valid?' и расхождение с данными':'')+': '+colored(remainder):''):'Заметных изменений нет.');
+  if(missingSales||!valid)html+='<div class="hint" style="margin-bottom:16px">'+(missingSales?'Если в одном из периодов товар не продавался, отдельно оценить влияние цены нельзя. ':'')+(!valid?'Расчёт отличается от прибыли в исходных данных на '+esc(signedMoney(residual))+'. Нужно сверить данные.':'')+'</div>';
+ }
+ const actions=[];
+ const add=(text,control)=>actions.push({text,control});
+ if(same)add('Выберите другой базовый или отчётный период.','Сравнивать разные сопоставимые периоды.');
+ else if(incomplete||!valid||[...current,...base].some(r=>r.sourceIssue))add('Сначала проверить полноту и сопоставимость данных: '+(incomplete?'число недель в периодах различается.':!valid?'факторы не полностью объясняют изменение прибыли.':'в исходных строках отмечены ошибки данных.'),'После сверки повторить сравнение; до этого не менять цену или бюджет по этим выводам.');
+ else {
+  const adverse=factors.filter(f=>f.value<-.5&&f.i!==7&&!(f.i===1&&(missingSales||(isArticle&&!priceSignificant)))&&!(f.i===5&&b.ads>0&&Math.abs(a.ads-b.ads)<=b.ads*.05)).sort((x,y)=>x.value-y.value);
+  for(const f of adverse.slice(0,2)){
+   const scope=isArticle?'по этому товару':'по товарам, которые сильнее всего снизили прибыль';
+   if(f.i===0)add(isArticle&&a.units>b.units?'Раньше каждая продажа в среднем приносила убыток. Большее число таких продаж могло увеличить потери. Сначала посчитайте, какая цена и какие расходы позволят продавать с прибылью.':'Проверьте '+scope+': был ли товар в наличии, сколько покупателей заходило в карточку и сколько заказов выкупили. Прежде чем наращивать продажи, посчитайте, сколько останется после расходов.','За период той же длительности сравните общую прибыль и число продаж. Учтите дни, когда товара не было в наличии.');
+   if(f.i===1)add((isArticle?'Выясните, почему товар стал продаваться дешевле: из-за скидки, акции или более частых продаж дешёвых вариантов.':'Найдите товары, на которых больше всего потеряли из-за снижения цены. Проверьте снижение от 5%: это скидка или стали чаще покупать дешёвые варианты?')+' Если цену меняли вы, попробуйте частично повысить её. На время проверки сохраните прежнюю рекламу и наличие товара.','Сравните общую прибыль за одинаковое число дней. Повышение цены выгодно, если прибыль растёт, даже когда продаж становится меньше.');
+   if(f.i===2)add('Проверьте комиссию '+scope+': площадка повысила ставку или сумма изменилась из-за цены и набора проданных товаров? Если начисление ошибочное, подайте обращение. Если ставка выросла, пересчитайте прибыль при текущей цене.','Проверьте, вернула ли площадка ошибочно удержанные деньги. Если меняете цену, сравните общую прибыль до и после изменения.');
+   if(f.i===3)add('Проверьте '+scope+', что стало дороже: доставка покупателю или возвраты. Сравните тарифы и склады отправки. Если выросли возвраты, выясните, почему покупатели отказываются от товара.','После изменений доставка одной продажи должна обходиться дешевле, а общая прибыль — расти. Сравнивайте периоды одинаковой длительности.');
+   if(f.i===4)add('Проверьте '+scope+', сколько товара лежит на складе и как быстро он продаётся. Если запас избыточный, посчитайте, что выгоднее: оставить на хранении, вывезти или продать со скидкой.','Выберите вариант, после которого останется больше денег с учётом скидки, хранения и вывоза.');
+   if(f.i===5)add('Посмотрите рекламные кампании '+scope+': сколько потратили и сколько осталось после расходов по выкупленным заказам. Пока не разобрались, не увеличивайте бюджет. Проверяйте снижение ставок или отключение на отдельных кампаниях.','Сравните общую прибыль товара до и после изменения рекламы. Цену и наличие держите одинаковыми; дождитесь выкупа заказов.');
+   if(f.i===6)add('Откройте расшифровку прочих начислений '+scope+'. Выясните, за что удержали или вернули деньги. Ошибочные начисления оспорьте; разовые выплаты отделите от обычных расходов.','Проверьте возврат спорных сумм. Оцените, сколько товар зарабатывает без разовых выплат и списаний, сохранив все обычные расходы.');
+   if(f.i===8)add('Проверьте '+scope+', что подорожало в закупке и доставке. Сравните предложения поставщиков с учётом качества и полной стоимости доставки.','Сколько стоит единица товара со всеми расходами на закупку и доставку? Экономия должна повышать прибыль, а не приводить к браку и возвратам.');
+  }
+  if(!actions.length)add(a.profit>0?'Сохраните текущие условия. Перед увеличением продаж проверьте запас товара и посчитайте, сколько дополнительно потребуется на рекламу и поставку. Начните с небольшого увеличения объёма.':'Разберите цену и расходы убыточных товаров. Посчитайте, что выгоднее: продолжить продажи, изменить цену или уменьшить расходы на рекламу.',a.profit>0?'После увеличения продаж общая прибыль должна вырасти с учётом всех дополнительных расходов.':'Выберите вариант, который оставляет больше денег после всех связанных с ним расходов.');
+ }
+ html+=block('Что делать в первую очередь','<ol style="padding-left:19px;margin:0">'+actions.map(x=>'<li style="margin-bottom:10px">'+esc(x.text)+'<br><b>Как оценить результат:</b> '+esc(x.control)+'</li>').join('')+'</ol>');
+ if(!same&&!incomplete&&valid){
+  let advertising=ownerAdvertisingPaybackNarrative(a,b,isArticle)
+   .replace(/Расчёт окупаемости рекламы является верхней оценкой/g,'Это условный сценарий')
+   .replace(/Даже по этой верхней оценке увеличение рекламы не окупилось\./g,'В этом сценарии прирост продаж не покрывает дополнительный бюджет.')
+   .replace(/Увеличение рекламы( на данный артикул)? не окупилось\./g,'В условном расчёте прирост продаж не покрывает увеличение бюджета.')
+   .replace(/При таком допущении увеличение рекламы( на данный артикул)? окупилось\./g,'В условном расчёте прирост продаж покрывает увеличение бюджета; фактическая окупаемость не подтверждена.')
+   .replace(/При таком результате снижение рекламы( на данный артикул)? было финансово оправданным\./g,'Расходы сократились без падения количества продаж; влияние изменения бюджета на прибыль требует проверки.');
+  html+='<details class="owner-decision-ad"><summary>Реклама — подробный расчёт</summary><div style="margin-top:10px;font-size:inherit;line-height:1.65">'+advertising+'</div></details>';
+ }
+ let host=box.querySelector(':scope > .owner-decision-content');
+ if(!host){for(const child of [...box.children])if(child.tagName!=='SUMMARY')child.remove();host=document.createElement('div');host.className='owner-decision-content';box.appendChild(host);}
+ if(host.innerHTML!==html)host.innerHTML=html;
+ host.style.fontSize='13px';
+ for(const el of host.querySelectorAll('.owner-decision-ad, .owner-decision-ad div, .owner-decision-ad span, .owner-decision-ad summary, .owner-decision-section div, li'))el.style.fontSize='13px';
 }
 function ownerRefineComparisonActions(card,a,b,market){
  const list=card.querySelector('details ul');
@@ -1841,6 +1905,83 @@ const comparisonStorageKey='mp-owner-finance-dashboard:comparison:'+location.pat
   updateFilterSummary();
  });
 })();
+</script>
+<script id="owner-overview-priorities">
+/* Overview priorities: independent of comparison-tab controls. */
+(function(){
+ const weekDate=k=>{const [y,w]=k.split('-W').map(Number),d=new Date(Date.UTC(y,0,4));d.setUTCDate(d.getUTCDate()-(d.getUTCDay()+6)%7+(w-1)*7);return d;};
+ const weekKey=d=>{const t=new Date(d);t.setUTCDate(t.getUTCDate()+3-(t.getUTCDay()+6)%7);const y=t.getUTCFullYear(),start=new Date(Date.UTC(y,0,4));start.setUTCDate(start.getUTCDate()-(start.getUTCDay()+6)%7);return y+'-W'+String(1+Math.round((weekDateFromThursday(t)-start)/604800000)).padStart(2,'0');};
+ function weekDateFromThursday(d){const t=new Date(d);t.setUTCDate(t.getUTCDate()-3);return t;}
+ const real=r=>r.article&&!/нераспредел|общие расходы/i.test(r.article);
+ const key=r=>JSON.stringify([r.market,r.article]);
+ function model(rows,baseline,scope,keys,baseKeys,thresholdRate,now){
+  const grouped=new Map();for(const r of rows.filter(real)){const k=key(r);if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(r);}
+  const profitGroups=new Map();for(const r of scope.filter(real))profitGroups.set(key(r),(profitGroups.get(key(r))||0)+(r.profit||0));
+  const positive=[...profitGroups.values()].reduce((s,p)=>s+Math.max(0,p),0),threshold=positive*thresholdRate/100;
+  const fullKeys=keys.filter(k=>+weekDate(k)+604800000<=+now).sort(),last3=fullKeys.slice(-3);
+  const consecutive=last3.length===3&&last3.every((k,i)=>!i||+weekDate(k)-weekDate(last3[i-1])===604800000);
+  const out=[];
+  const markets=[...new Set(rows.map(r=>r.market))];
+  const comparable=keys.length>0&&baseKeys.length===keys.length&&markets.every(m=>keys.every(k=>scope.some(r=>r.market===m&&wk(r)===k))&&baseKeys.every(k=>baseline.some(r=>r.market===m&&wk(r)===k)))&&keys.every(k=>+weekDate(k)+604800000<=+now);
+  const leaders=[...profitGroups.entries()].filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+  for(const [id,rs] of grouped){
+   const a=agg(rs),bs=baseline.filter(r=>key(r)===id),b=agg(bs),title=rs[0].article+' · '+(rs[0].market==='WB'?'ВБ':rs[0].market);
+   const covered=consecutive&&last3.every(k=>rs.some(r=>wk(r)===k));
+   const weekly=last3.map(k=>sum(rs.filter(r=>wk(r)===k),'profit'));
+   const losingWeeks=fullKeys.filter(k=>rs.some(r=>wk(r)===k)&&sum(rs.filter(r=>wk(r)===k),'profit')<0);
+   const recurring=(covered&&weekly.filter(p=>p<0).length>=2)||(fullKeys.length>3&&losingWeeks.length>=2);
+   const canCompare=keys.length>0&&baseKeys.length===keys.length&&keys.every(k=>scope.some(r=>r.market===rs[0].market&&wk(r)===k)&&+weekDate(k)+604800000<=+now)&&baseKeys.every(k=>baseline.some(r=>r.market===rs[0].market&&wk(r)===k))&&bs.length>0&&!rs.some(r=>r.sourceIssue)&&!bs.some(r=>r.sourceIssue);
+   const drop=canCompare?b.profit-a.profit:0,loss=Math.max(0,-a.profit),material=v=>v>.5&&(positive<=0||v>=threshold);
+   const entry={id,title,market:rs[0].market,article:rs[0].article,amount:Math.max(loss,drop),kind:'',fact:'',action:'',control:'',recurring};
+   if(loss>.5){entry.kind='Остановить потери';entry.fact='Убыток за выбранный период — '+money(loss)+'.'+(canCompare&&b.profit>=0?' В прошлом периоде товар был прибыльным или вышел в ноль.':'')+(recurring?' Убыточных недель в выбранном периоде: '+losingWeeks.length+'.':'');entry.action='Разберите цену и расходы на одну продажу. Сначала выясните, что создаёт убыток: обычные продажи или отдельные списания.';entry.control='После изменений сравните общую прибыль за период той же длительности.';}
+   else if(material(drop)){entry.kind='Вернуть прибыль';entry.fact='Прибыль снизилась на '+money(drop)+': '+money(b.profit)+' → '+money(a.profit)+'.';entry.action='Откройте сравнение и начните с самого крупного фактора снижения прибыли.';entry.control='Проверьте, выросла ли общая прибыль после изменения цены или расходов.';}
+   else if(recurring){entry.kind='Убыток повторяется';entry.amount=losingWeeks.reduce((s,k)=>s-sum(rs.filter(r=>wk(r)===k),'profit'),0);entry.fact='Убыточных недель в выбранном периоде: '+losingWeeks.length+'. Сумма убытков этих недель — '+money(entry.amount)+'. Итог всего периода — '+money(a.profit)+'.';entry.action='Сравните убыточные недели: повторяется ли один расход или снижение цены? Устраните подтверждённую причину.';entry.control='Проверьте прибыль в следующей полной неделе.';}
+   else if(keys.length>1&&losingWeeks.includes(fullKeys.at(-1))){entry.kind='Последняя неделя убыточна';entry.amount=-sum(rs.filter(r=>wk(r)===fullKeys.at(-1)),'profit');entry.fact='За весь период прибыль '+money(a.profit)+', но за '+fullKeys.at(-1)+' получен убыток '+money(entry.amount)+'.';entry.action='Разберите последнюю неделю отдельно: что изменилось в цене, рекламе и расходах? Прибыль прошлых недель не должна скрывать текущие потери.';entry.control='Проверьте, вернулся ли товар к прибыли в следующей полной неделе.';}
+   else if(covered&&weekly.every(p=>p>0)&&a.profit>0&&leaders.includes(id)&&canCompare&&drop<=.5&&a.margin>=b.margin){entry.kind='Проверить возможность роста';entry.amount=a.profit;entry.fact='Товар приносил прибыль последние три полные недели подряд. Общая прибыль и доля прибыли в выручке не снизились к прошлому периоду. Прибыль периода — '+money(a.profit)+'.';entry.action='Проверьте запас товара и расходы на увеличение продаж. Начните с небольшого теста, если после этих расходов остаётся прибыль.';entry.control='Общая прибыль должна вырасти с учётом дополнительных расходов.';}
+   if(entry.kind&&canCompare&&drop>.5&&entry.kind!=='Проверить возможность роста'){
+    const f=v3Factors(rs,bs),labels=['Количество продаж','Цена продавца','Комиссия','Логистика','Хранение','Реклама','Прочие начисления','Налоги','Себестоимость'];
+    const ranked=f.values.map((value,i)=>({value,i})).filter(x=>x.value<-.5).sort((x,y)=>x.value-y.value),worst=ranked[0];
+    if(worst){entry.fact+=' Крупнейший фактор снижения: '+labels[worst.i].toLowerCase()+' — '+money(Math.abs(worst.value))+'.';
+     if(worst.i===1&&a.units>0&&b.units>0&&Math.abs(a.revenue/a.units-b.revenue/b.units)>=b.revenue/b.units*.05)entry.action='Проверьте, почему снизилась цена: скидка, акция или чаще покупали дешёвые варианты. Если цену меняли вы, посчитайте и проверьте её частичное повышение при прежней рекламе.';
+     if(worst.i===3)entry.action='Выясните, что подорожало: доставка покупателю или возвраты. Сравните тарифы, склады отправки и причины отказов от товара.';
+     if(worst.i===5&&!(b.ads>0&&Math.abs(a.ads-b.ads)<=b.ads*.05))entry.action='Проверьте расходы и выкупленные заказы по рекламным кампаниям. До проверки не увеличивайте бюджет; изменение ставок проверяйте на отдельных кампаниях.';
+    }
+   }
+   if(entry.kind){entry.rank=entry.kind==='Проверить возможность роста'?2:entry.kind==='Убыток повторяется'?1:0;out.push(entry);}
+  }
+  for(const market of markets){const charges=rows.filter(r=>r.market===market&&!real(r)),p=sum(charges,'profit');if(p<-.5&&(positive<=0||-p>=threshold))out.push({id:'unallocated-'+market,title:market==='WB'?'ВБ — общие начисления':'Ozon — общие начисления',market,article:null,amount:-p,rank:0,kind:'Проверить нераспределённые расходы',fact:'Отрицательный результат, не отнесённый к товарам: '+money(p)+'. Он уменьшает общий итог площадки.',action:'Откройте расшифровку начислений. Выясните, какие услуги или списания дали эту сумму, и проверьте ошибки. Не считайте эту сумму убытком конкретного товара.',control:'Подтвердите состав расходов и оспорьте ошибочные начисления.'});}
+  out.sort((a,b)=>a.rank-b.rank||b.amount-a.amount||Number(b.recurring)-Number(a.recurring)||a.title.localeCompare(b.title));
+  const problems=out.filter(x=>x.rank<2),lossItems=out.filter(x=>x.kind==='Остановить потери');
+  return {items:problems.length?problems.slice(0,3):out.slice(0,1),positive,threshold,comparable,lossCount:lossItems.length,lossTotal:lossItems.reduce((s,x)=>s+Math.max(0,-sum(grouped.get(x.id),'profit')),0)};
+ }
+ window.ownerPriorityModel=model;
+ let rate=5;try{const saved=Number(localStorage.getItem('owner-priority-threshold'));if(saved>0&&saved<=100)rate=saved;}catch(e){}
+ function context(){
+  const m=$('#market').value,selected=raw.filter(periodMatch),scope=selected.filter(r=>m==='all'||r.market===m),keys=[...new Set(selected.map(wk))].sort();
+  let baseKeys=[],label='',contiguous=keys.every((k,i)=>!i||+weekDate(k)-weekDate(keys[i-1])===604800000);
+  const mode=$('#period').value;
+  if(keys.length&&contiguous){
+   if(mode==='ytd'){baseKeys=keys.map(k=>(Number(k.slice(0,4))-1)+k.slice(4));label='те же недели прошлого года';}
+   else if(mode==='month'||mode==='customMonth'){
+    const months=[...new Set(selected.map(mo))].sort(),first=months[0].split('-').map(Number),start=first[0]*12+first[1]-1;
+    const indices=months.map(k=>{const [y,m]=k.split('-').map(Number);return y*12+m-1;});
+    if(indices.every((v,i)=>!i||v-indices[i-1]===1)){const firstWeek=+weekDate(keys[0]);baseKeys=keys.map((_,i)=>weekKey(new Date(firstWeek-(keys.length-i)*604800000)));label='предыдущие '+keys.length+' недель — такой же длительности';}
+   }else {const first=+weekDate(keys[0]);baseKeys=keys.map((_,i)=>weekKey(new Date(first-(keys.length-i)*604800000)));label='предыдущие '+keys.length+' нед.';}
+  }
+  const baseline=raw.filter(r=>(m==='all'||r.market===m)&&baseKeys.includes(wk(r)));
+  return {scope,keys,baseKeys,baseline,label};
+ }
+ renderInsights=function(rs){
+  const root=$('#insights'),ctx=context(),data=model(rs,ctx.baseline,ctx.scope,ctx.keys,ctx.baseKeys,rate,new Date()),esc=escapeText;
+  const range=ks=>ks.length===1?ks[0]:ks.length?ks[0]+' — '+ks.at(-1):'нет данных';
+  root.style.gridTemplateColumns='minmax(0,1fr)';
+  root.innerHTML='<article class="insight owner-priorities"><h3>Приоритеты по итогам периода</h3><p class="hint">Анализируем: '+esc(range(ctx.keys))+'. '+(data.comparable?'Сравниваем: '+esc(range(ctx.baseKeys))+' ('+esc(ctx.label)+').':'Не по всем площадкам есть полный прошлый период. Сравнение выполняется только там, где данных достаточно.')+'</p><details><summary>Как отбираются приоритеты</summary><p>Порог: <label><input aria-label="Порог существенности, %" class="owner-priority-rate" type="number" min="0.1" max="100" step="0.1" value="'+rate+'" style="width:70px"> %</label> положительной прибыли товаров выбранных площадок до вычета убытков — '+esc(money(data.threshold))+'. Порог применяется к снижению прибыли. Убыточные товары показываются независимо от порога. Возможность роста — только при отсутствии выявленных проблем, устойчивой прибыли и без ухудшения результата.</p>'+(data.positive<=0?'<p>Положительной прибыли нет: убытки ранжируются по сумме без процентного порога.</p>':'')+'</details>'+(data.items.length?data.items.map((x,i)=>'<section style="border-top:1px solid var(--line);padding:12px 0"><h4>'+String(i+1)+'. '+esc(x.kind)+' — '+esc(x.title)+'</h4><p>'+esc(x.fact)+'</p><p><b>Что сделать:</b> '+esc(x.action)+'</p><p><b>Как оценить результат:</b> '+esc(x.control)+'</p></section>').join(''):'<p>'+(rs.length?'Убытков и ухудшений выше выбранного порога не выявлено. Прибыль периода: '+esc(money(agg(rs).profit))+'. Это не рекомендация увеличивать продажи: для неё нужно подтвердить устойчивую прибыль и наличие товара.':'Нет данных по выбранным фильтрам.')+'</p>')+'</article>';
+  if(data.lossCount)root.querySelector('h3').insertAdjacentHTML('afterend','<p class="impact-bad"><b>Убыточных товаров: '+data.lossCount+'. Общий убыток этих товаров: '+esc(money(data.lossTotal))+'.</b></p>');
+  root.querySelector('.owner-priority-rate').addEventListener('change',e=>{const n=Number(e.target.value);if(!(n>0&&n<=100)){e.target.value=rate;return;}rate=n;try{localStorage.setItem('owner-priority-threshold',String(rate));}catch(err){}renderInsights(selectedRows());});
+ };
+ renderInsights(selectedRows());
+})();
+
 </script>
 </body>
 </html>
