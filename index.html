@@ -1906,6 +1906,117 @@ const comparisonStorageKey='mp-owner-finance-dashboard:comparison:'+location.pat
  });
 })();
 </script>
+<script id="owner-category-filter">
+(()=>{
+ const FALLBACK_CATEGORY_ENTRIES=[
+  ['БлузШоколад','Блузки'],['Mint-lilac3','Расчески'],['PinkLight2','Расчески'],
+  ['БлузАбстракц','Блузки'],['black1','Расчески'],['PinkHot5','Расчески'],
+  ['fuchsia4','Расчески'],['lavender6','Расчески'],['БлузБелая','Блузки'],
+  ['БлузГолубая','Блузки'],['Нераспределенное','Общее'],
+  ['неопознанный товар','Общее'],['БлузБордо','Блузки']
+ ];
+ const normalizeArticle=value=>String(value??'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+ const fallbackMap=new Map(FALLBACK_CATEGORY_ENTRIES.map(([article,category])=>[normalizeArticle(article),category]));
+ let categoryMap=new Map(fallbackMap);
+ const categoryOf=article=>categoryMap.get(normalizeArticle(article))||'Без категории';
+ const categorySelect=document.createElement('select');
+ categorySelect.id='category';
+ categorySelect.setAttribute('aria-label','Категория');
+ const categoryField=document.createElement('div');
+ categoryField.className='field';
+ categoryField.innerHTML='<label for="category">Категория</label>';
+ categoryField.appendChild(categorySelect);
+ const articleSelect=document.getElementById('search');
+ const articleField=articleSelect?.closest('.field');
+ if(!articleField||document.getElementById('category'))return;
+ articleField.before(categoryField);
+
+ const matchesCategory=row=>categorySelect.value==='all'||categoryOf(row.article)===categorySelect.value;
+ const marketplaceRows=()=>{
+  const market=document.getElementById('market').value;
+  return raw.filter(row=>market==='all'||row.market===market);
+ };
+ function fillCategories(){
+  const selected=categorySelect.value||'all';
+  const categories=[...new Set([
+   ...categoryMap.values(),
+   ...(raw.some(row=>!categoryMap.has(normalizeArticle(row.article)))?['Без категории']:[])
+  ])].sort((a,b)=>a.localeCompare(b,'ru'));
+  categorySelect.innerHTML='<option value="all">Все категории</option>'+categories.map(category=>'<option value="'+escapeText(category)+'">'+escapeText(category)+'</option>').join('');
+  categorySelect.value=categories.includes(selected)?selected:'all';
+ }
+ const originalSelectedRows=selectedRows;
+ selectedRows=function(){return originalSelectedRows().filter(matchesCategory);};
+ fillArticles=function(){
+  fillCategories();
+  const selected=articleSelect.value;
+  const articles=[...new Set(marketplaceRows().filter(matchesCategory).map(row=>row.article))].sort((a,b)=>a.localeCompare(b,'ru'));
+  articleSelect.innerHTML='<option value="">Все артикулы</option>'+articles.map(article=>'<option value="'+escapeText(article)+'">'+escapeText(article)+'</option>').join('');
+  articleSelect.value=articles.includes(selected)?selected:'';
+ };
+ const updateCoverageForRows=rows=>{
+  const label=document.getElementById('dataset-coverage');
+  if(!label||!rows.length)return;
+  const latest=rows.reduce((best,row)=>!best||row.year>best.year||(row.year===best.year&&row.week>best.week)?row:best,null);
+  if(!latest)return;
+  const end=new Date(Date.UTC(latest.year,0,4));
+  end.setUTCDate(end.getUTCDate()-((end.getUTCDay()+6)%7)+(latest.week-1)*7+6);
+  const endDate=end.toLocaleDateString('ru-RU',{timeZone:'UTC',day:'2-digit',month:'2-digit',year:'2-digit'});
+  label.replaceChildren(document.createTextNode('Данные по '+latest.week+' неделю'),document.createElement('br'),document.createTextNode('(до '+endDate+' включительно)'));
+ };
+ const withCategoryRaw=(fn,self,args)=>{
+  if(categorySelect.value==='all')return fn.apply(self,args);
+  const allRows=raw;
+  raw=allRows.filter(matchesCategory);
+  try{return fn.apply(self,args);}finally{raw=allRows;updateCoverageForRows(allRows);}
+ };
+ const originalRenderChart=renderChart;
+ renderChart=function(){return withCategoryRaw(originalRenderChart,this,arguments);};
+ const originalRender=render;
+ render=function(){
+  const result=withCategoryRaw(originalRender,this,arguments);
+  queueMicrotask(()=>renderChart());
+  return result;
+ };
+ if(typeof renderSummary==='function'){
+  const originalRenderSummary=renderSummary;
+  renderSummary=function(){return withCategoryRaw(originalRenderSummary,this,arguments);};
+ }
+ if(typeof renderComparison==='function'){
+  const originalRenderComparison=renderComparison;
+  renderComparison=function(){return withCategoryRaw(originalRenderComparison,this,arguments);};
+ }
+ if(typeof v2Factor==='function'){
+  const originalV2Factor=v2Factor;
+  v2Factor=function(){return withCategoryRaw(originalV2Factor,this,arguments);};
+ }
+ categorySelect.addEventListener('change',()=>{fillArticles();render();});
+ document.getElementById('market').addEventListener('change',()=>{fillCategories();fillArticles();render();});
+ fillCategories();
+ fillArticles();
+ render();
+
+ function loadLiveCategories(){
+  return new Promise(resolve=>{
+   const callback='ownerCategoryCallback_'+Date.now();
+   const script=document.createElement('script');
+   const finish=()=>{delete window[callback];script.remove();resolve();};
+   window[callback]=payload=>{
+    try{
+     const liveEntries=(payload?.table?.rows||[]).map(row=>[row?.c?.[0]?.v,row?.c?.[1]?.v]).filter(([article,category])=>String(article??'').trim()&&String(category??'').trim());
+     categoryMap=new Map(fallbackMap);
+     for(const [article,category] of liveEntries)categoryMap.set(normalizeArticle(article),String(category).trim());
+     fillCategories();fillArticles();render();
+    }finally{finish();}
+   };
+   script.onerror=finish;
+   script.src='https://docs.google.com/spreadsheets/d/1i1ywnXh21ijaDiGJ-bjZtTAkL3m4aSQzuyx4Abvc4r4/gviz/tq?gid=1448547621&range=I2:J1000&tqx=out:json;responseHandler:'+encodeURIComponent(callback);
+   document.head.appendChild(script);
+  });
+ }
+ loadLiveCategories().catch(()=>{});
+})();
+</script>
 </body>
 </html>
 
