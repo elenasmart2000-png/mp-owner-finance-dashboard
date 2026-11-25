@@ -82,9 +82,9 @@ function convert(t,p){return normalize(t,p).map(r=>({market:p==='wb'?'WB':'Ozon'
   </aside>
   <main class="main">
     <header class="topbar"><div><h2>Финансовый дашборд собственника</h2><p id="period-caption">WB + Ozon · 38-я неделя 2026 года</p></div><div class="badge">Локальный HTML · Google Sheets</div></header>
-    <nav class="tabs" aria-label="Разделы"><button class="tab active" data-view="overview">Обзор</button><button class="tab" data-view="analysis">Анализ</button><button class="tab" data-view="products">По артикулам</button><button class="tab" data-view="summary">Динамика</button><button class="tab" data-view="comparison">Сравнение периодов</button><button class="tab" data-view="factor">Факторный анализ</button></nav>
+    <nav class="tabs" aria-label="Разделы"><button class="tab active" data-view="overview">Обзор</button><button class="tab" data-view="analysis">Анализ</button><button class="tab" data-view="products">По артикулам</button><button class="tab" data-view="summary">Динамика</button><button class="tab" data-view="comparison">Сравнение периодов</button><button class="tab" data-view="factor">Факторный анализ</button><button class="tab" data-view="forecast">Прогноз прибыли</button></nav>
     <p id="coverage" style="font-size:13px;color:#8a6010;background:#fff7e6;padding:12px;border-radius:10px"></p><section class="kpis" id="kpis"></section>
-    <section class="view active" id="overview">
+    <section class="view" id="forecast"></section><section class="view active" id="overview">
       <div class="grid">
         <article class="card"><div class="card-head"><div><h3>Динамика по неделям</h3><div class="hint">сравнение площадок</div></div><div class="seg"><button class="active" data-chart="revenue">Выручка</button><button data-chart="profit">Прибыль</button></div></div><div class="chart" id="line-chart"></div><div class="legend"><span><i style="background:var(--purple)"></i>WB</span><span><i style="background:var(--cyan)"></i>Ozon</span></div></article>
         <article class="card"><div class="card-head"><div><h3>Юнит-экономика</h3><div class="hint">Расходы и прибыль · доли от выручки до СПП</div></div></div><div class="donut-wrap"><div class="donut" id="donut"><div class="donut-center" id="donut-center"></div></div><div class="expense-list" id="expense-list"></div></div></article>
@@ -1044,7 +1044,7 @@ const ownerStyle=document.createElement('style');ownerStyle.textContent='.owner-
 const ownerMarketFinal=renderMarkets;renderMarkets=function(){ownerMarketFinal();$$('#market-grid .mp-child').forEach(x=>x.remove());};
 const ownerInsightsFinal=renderInsights;renderInsights=function(rs){ownerInsightsFinal(rs);const base=ownerBase(rs);if(!base.rows.length||!rs.length)return;const a=agg(rs),b=agg(base.rows),effects=[['выручка',a.revenue-b.revenue],['себестоимость',b.cogs-a.cogs],['комиссия',b.commission-a.commission],['логистика',b.logistics-a.logistics],['реклама',b.ads-a.ads],['прочие расходы МП',b.other-a.other],['налоги',b.tax-a.tax]],down=effects.filter(x=>x[1]<0).sort((x,y)=>x[1]-y[1])[0],up=effects.filter(x=>x[1]>0).sort((x,y)=>y[1]-x[1])[0];const card=$('#insights .insight'),paragraphs=card?.querySelectorAll('p');if(paragraphs?.[0])paragraphs[0].innerHTML='Прибыль '+money(a.profit)+', изменение '+ownerDelta(a.profit-b.profit)+'. '+(down?'Главное снижение: '+down[0]+' '+ownerDelta(down[1])+'. ':'')+(up?'Главная поддержка: '+up[0]+' '+ownerDelta(up[1])+'.':'');if(paragraphs?.[1]&&down)paragraphs[1].innerHTML='<b>Действие.</b> Открыть сравнение периодов и проверить, почему изменились '+escapeText(down[0])+': из-за объёма продаж, цены, состава проданных товаров или условий площадки.';};
 const ownerAnalysisFinal=renderAnalysis;renderAnalysis=function(a,p){ownerAnalysisFinal(a,p);const groups=$$('#money-stack svg g'),values=[a.revenue,-a.cogs,-a.expenses,-a.tax,a.profit];groups.forEach((g,i)=>{const t=g.querySelector('text');if(t&&a.revenue){const sub=document.createElementNS('http://www.w3.org/2000/svg','tspan');sub.setAttribute('x',t.getAttribute('x'));sub.setAttribute('dy','-12');sub.textContent=pct(values[i]/a.revenue);t.appendChild(sub);}});$('#loss-list').closest('.card').querySelector('.hint').textContent='Рейтинг товаров по прибыли';$('#owner-charts')?.remove();};
-const ownerCleanBase=ownerClean;ownerClean=function(root){ownerCleanBase(root);if(!root)return;const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];while(w.nextNode())if(!['SCRIPT','STYLE'].includes(w.currentNode.parentElement?.tagName))nodes.push(w.currentNode);for(const n of nodes)if(!n.parentElement?.closest('#stocks,[data-view="stocks"]')&&/остатк|запас|Рекламу планировать только под товар/i.test(n.textContent))n.textContent=n.textContent.replace(/[^.!?]*(?:остатк|запас)[^.!?]*[.!?]?/gi,' Сопоставить продажи, расходы и прибыль за выбранный период.').replace(/Рекламу планировать только под товар[^.!?]*[.!?]?/gi,' Решение о рекламе принимать после оценки прибыли дополнительных продаж.');};
+const ownerCleanBase=ownerClean;ownerClean=function(root){ownerCleanBase(root);if(!root)return;const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];while(w.nextNode())if(!['SCRIPT','STYLE'].includes(w.currentNode.parentElement?.tagName))nodes.push(w.currentNode);for(const n of nodes)if(!n.parentElement?.closest('#forecast,#stocks,[data-view="stocks"]')&&/остатк|запас|Рекламу планировать только под товар/i.test(n.textContent))n.textContent=n.textContent.replace(/[^.!?]*(?:остатк|запас)[^.!?]*[.!?]?/gi,' Сопоставить продажи, расходы и прибыль за выбранный период.').replace(/Рекламу планировать только под товар[^.!?]*[.!?]?/gi,' Решение о рекламе принимать после оценки прибыли дополнительных продаж.');};
 const ownerChartFinal=renderChart;renderChart=function(){ownerChartFinal();const rs=selectedRows(),keys=[...new Set(rs.map(wk))].sort(),card=$('#line-chart').closest('.card');card.querySelector(':scope > .legend')?.remove();$('#line-chart').style.height='auto';if(keys.length===1){const scope=ownerScope(),history=[...new Set(raw.map(wk))].sort().filter(k=>k<=keys[0]).slice(-8),groups=history.map(k=>({WB:scope.some(r=>wk(r)===k&&r.market==='WB')?sum(scope.filter(r=>wk(r)===k&&r.market==='WB'),chartMetric):null,Ozon:scope.some(r=>wk(r)===k&&r.market==='Ozon')?sum(scope.filter(r=>wk(r)===k&&r.market==='Ozon'),chartMetric):null}));card.querySelector('h3').textContent='Неделя в контексте динамики';card.querySelector('.hint').textContent='До 8 недель, заканчивающихся выбранной неделей '+keys[0]+'. Карточки выше — только выбранная неделя.';$('#line-chart').innerHTML=summaryChart(groups,history,($('#market').value==='all'?['WB','Ozon']:[$('#market').value]).map(m=>[m,a=>a[m],m==='WB'?'#8b5cf6':'#20a99a']),'money');}};
 
 /* Final language and readability pass. */
@@ -2427,6 +2427,18 @@ const comparisonStorageKey='mp-owner-finance-dashboard:comparison:'+location.pat
   const days=total!=null&&items.every(row=>row.total!=null)&&sales>0?28*total/sales:null;
   return {items,mp,seller,total,sales,days,partial};
  }
+ window.ownerForecastStock=(g,end)=>{
+  const weeks=sources.get(g.market)?.weeks;
+  const week=weeks?.get(end);
+  if(!week)return {total:null,sizes:[]};
+  const {items,sales}=summarizeSource(weeks,false,week,row=>row.article===g.article);
+  const total=items.length&&items.every(row=>row.total!=null)?items.reduce((sum,row)=>sum+row.total,0):null;
+  const positiveSales=items.reduce((sum,row)=>sum+Math.max(0,row.sales),0);
+  const sizes=sales==null||!positiveSales?[]:items.filter(row=>row.size&&row.sales>0).map(row=>({
+   size:row.size,stock:row.total,share:row.sales/positiveSales
+  }));
+  return {total,sizes};
+ };
  function status(row){
   if(row.partial||row.total==null)return 'Остаток заполнен не полностью';
   if(row.sales==null)return 'Нет данных за все четыре недели';
@@ -2637,6 +2649,197 @@ const comparisonStorageKey='mp-owner-finance-dashboard:comparison:'+location.pat
 })();
 </script>
 
-</body>
+<style>#forecast tbody tr:has(td:first-child) td:nth-child(2){font-weight:700;background:#f2f6fb}#forecast .unit-table{min-width:520px;width:100%;border-collapse:separate;border-spacing:0}#forecast .unit-table :is(th,td){padding:8px 6px;white-space:normal}#forecast .unit-table th[scope=colgroup]{text-align:center;font-size:14px}#forecast .unit-table th[rowspan],#forecast .unit-table tbody td:first-child{position:sticky;left:0;z-index:2;background:#fff;min-width:96px;max-width:135px;box-shadow:1px 0 #c5cfdf}#forecast .unit-table thead tr:first-child th:nth-child(2),#forecast .unit-table thead tr:nth-child(2) th:nth-child(-n+3){background:#eaf0f8}#forecast .unit-table thead tr:first-child th:last-child,#forecast .unit-table thead tr:nth-child(2) th:nth-child(n+4){background:#dcf4ef}#forecast .unit-table tbody td:nth-child(n+5){background:#f4fbf9}#forecast .unit-table thead tr:first-child th:last-child,#forecast .unit-table thead tr:nth-child(2) th:nth-child(4),#forecast .unit-table tbody td:nth-child(5){border-left:2px solid #9bbfb9}#forecast .unit-table tbody tr td:nth-child(2){font-weight:inherit;background:transparent}#forecast .forecast-actions,#forecast .forecast-actions~*{font-size:13px}#forecast details{margin-top:14px}#forecast summary{cursor:pointer}#forecast .forecast-actions,#forecast form{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:14px 0}#forecast button,#forecast select,#forecast input{font:inherit;color:inherit;background:white;border:1px solid #bdccdf;border-radius:7px;padding:6px 9px}#forecast label{display:grid;gap:4px}#forecast button{cursor:pointer}#forecast .table-wrap{overflow-x:auto}#forecast td:first-child{text-align:left}#forecast .forecast-rule{margin:6px 0}#forecast .forecast-stock-table tbody th{position:static;text-align:left;font-size:13px}#forecast .forecast-stock-table .stock-shortage > *{color:#9b2226;background:#fff0ef}
+#forecast .unit-table .forecast-weekly{width:10ch;white-space:normal;text-wrap:balance}
+#forecast :is(.forecast-articles,.forecast-stock-table){width:100%;table-layout:fixed;min-width:400px}
+#forecast :is(.forecast-articles,.forecast-stock-table) :is(th,td){padding:7px 6px;white-space:normal;overflow-wrap:anywhere}
+#forecast :is(.forecast-articles,.forecast-stock-table) thead th{text-wrap:balance}
+#forecast .forecast-articles :is(th,td):first-child{width:9ch;text-align:left}
+#forecast .forecast-stock-table thead th:nth-child(1){width:11ch;text-align:left}
+#forecast .forecast-stock-table thead th:nth-child(2){width:9ch}
+#forecast .forecast-stock-table thead th:nth-child(3){width:7ch}
+#forecast .forecast-stock-table thead th:nth-child(4){width:13ch}
+#forecast .forecast-stock-table :is(th,td):last-child{text-align:left}
+</style><script>(function forecastTab(){
+ const host=document.querySelector('#forecast'),tab=document.querySelector('[data-view=forecast]');
+ const panels=['WB','Ozon'].map(market=>{
+  const view=document.createElement('section');
+  view.dataset.forecastMarket=market;
+  host.appendChild(view);
+  return {market,view,draw:marketForecast(view,market)};
+ });
+ function refreshForecast(){
+  if(!host.classList.contains('active'))return;
+  for(const panel of panels){
+   panel.view.hidden=$('#market').value!=='all'&&$('#market').value!==panel.market;
+   if(!panel.view.hidden)panel.draw();
+  }
+ }
+ function marketForecast(view,market){
+ const W=604800000, day=W/7, fields=['units','revenue','cogs','commission','logistics','ads','other','tax','reconcile','profit'];
+ const names={units:'Продажи',price:'Цена до СПП',commission:'Комиссия',logistics:'Логистика',ads:'ДРР',other:'Прочие расходы МП'};
+ const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const fmt=n=>Number.isFinite(n)?n.toLocaleString('ru-RU',{maximumFractionDigits:1}):'—';
+ const date=(y,w)=>{const j=Date.UTC(y,0,4);return j-((new Date(j).getUTCDay()+6)%7)*day+(w-1)*W};
+ const label=d=>{const y=new Date(d+3*day).getUTCFullYear();return y+' / '+(1+(d-date(y,1))/W)};
+ const zero=()=>Object.fromEntries(fields.map(k=>[k,0]));
+ const add=(a,b)=>{for(const k of fields)a[k]+=b[k];return a};
+ const total=list=>list.reduce(add,zero());
+ const val=id=>document.getElementById(id).value;
+ const options=(list)=>list.map(([v,l])=>'<option value="'+esc(v)+'">'+esc(l)+'</option>').join('');
+ let rules=[], nextId=1, model;
+ let focusWeek=-1;
+ const marketTitle=market==='WB'?'ВБ':'Ozon';
+ const match=(g,r)=>(r.market==='all'||r.market===g.market)&&(!r.category||r.category===g.category)&&(!r.article||r.article===g.article);
+ function calculate(g,week){
+  const b=g.base,a={...b}, found={};
+  if(b.units<=0||b.revenue<=0)return a;
+  for(const r of rules.filter(r=>r.start<=week&&match(g,r)).sort((x,y)=>Number(!!x.article)-Number(!!y.article)||Number(x.market!=='all')-Number(y.market!=='all')||x.start-y.start||x.id-y.id))found[r.key]=r;
+  const change=(v,r)=>{
+   if(!r)return v;
+   if(!r.absolute)return v*(1+r.value/100);
+   if(r.article)return r.value;
+   const b=model.categoryBases.get(r.category);
+   const reference=r.key==='units'?b.units:b.revenue/b.units;
+   return reference>0?v*r.value/reference:v;
+  };
+  a.units=change(b.units,found.units);
+  a.revenue=a.units*change(b.revenue/b.units,found.price);
+  const ratio=a.revenue/b.revenue,volume=a.units/b.units;
+  a.cogs*=volume;
+  for(const k of ['commission','logistics','ads','other'])a[k]=found[k]?a.revenue*found[k].value/100:b[k]*(k==='logistics'?volume:ratio);
+  a.tax*=ratio;
+  a.profit=a.revenue-a.cogs-a.commission-a.logistics-a.ads-a.other-a.tax-a.reconcile;
+  return a;
+ }
+ function build(){
+  const category=val('category'),article=val('search');
+  const rows=raw.filter(r=>r.market===market);
+  const now= new Date(), today=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());
+  const end=Math.max(...rows.filter(r=>periodMatch(r)&&date(r.year,r.week)+W<=today).map(r=>date(r.year,r.week)));
+  if(!Number.isFinite(end))return;
+  const groups=new Map(),coverage=new Map();
+  for(const r of rows){
+   const d=date(r.year,r.week);
+   if(d>end||d<end-3*W)continue;
+   if(!coverage.has(r.market))coverage.set(r.market,new Set());
+   coverage.get(r.market).add(d);
+   const cat=window.ownerCategoryOf(r.article);
+
+   const key=JSON.stringify([r.market,r.article]);
+   if(!groups.has(key))groups.set(key,{market:r.market,category:cat,article:r.article,base:zero()});
+   add(groups.get(key).base,r);
+  }
+  const items=[...groups.values()];
+  for(const g of items)for(const k of fields)g.base[k]/=4;
+  const incomplete=(market==='all'?['WB','Ozon']:[market]).filter(m=>coverage.get(m)?.size!==4);
+  const categoryBases=new Map();
+  for(const g of items)if(g.base.units>0&&g.base.revenue>0){
+   if(!categoryBases.has(g.category))categoryBases.set(g.category,zero());
+   add(categoryBases.get(g.category),g.base);
+  }
+  return {categoryBases,end,items:items.filter(g=>(category==='all'||category===g.category)&&(!article||article===g.article)),allItems:items,incomplete};
+ }
+ const table=(head,rows,compact=false)=>'<div class="table-wrap"><table class="table'+(compact?' forecast-articles':'')+'"><thead><tr>'+head.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+ function draw(){
+
+  $('#kpis').hidden=$('#coverage').hidden=true;
+  model=build();
+  if(!model||model.incomplete.length||!model.items.length){view.innerHTML='<div class="card"><h3>'+marketTitle+'</h3>'+(model?.incomplete.length?'Нет четырёх полных недель данных по '+esc(model.incomplete.join(', ')):'Нет данных для прогноза при выбранных фильтрах')+'</div>';return}
+  const {end,items}=model,dates=[1,2,3,4].map(i=>end+i*W);
+  const base=total(items.map(g=>g.base)), weeks=dates.map(d=>total(items.map(g=>calculate(g,d)))), all=[total(weeks),...weeks];
+  const changed=rules.some(r=>items.some(g=>match(g,r))&&r.start<=dates[3]);
+  const head=['Показатель','За 4 недели',...dates.map(label)];
+  const row=(title,f)=>[title,...all.map((a,i)=>fmt(f(a,i)))];
+  const margin=a=>a.revenue?100*a.profit/a.revenue:NaN;
+  const lines=[row('Базовая прибыль, ₽',(a,i)=>base.profit*(i?1:4))];
+  if(changed)lines.push(row('Прибыль по сценарию, ₽',a=>a.profit),row('Изменение прибыли, ₽',(a,i)=>a.profit-base.profit*(i?1:4)));
+  lines.push(row('Маржинальность'+(changed?' сценария':'')+', %',margin));
+  const costs=a=>a.commission+a.logistics+a.ads+a.other;
+  const expenseMetrics=[['Комиссия',a=>a.commission],['Логистика',a=>a.logistics],['Реклама (ДРР)',a=>a.ads],['Прочие расходы МП',a=>a.other],['Итого расходы МП',costs],['Налоги',a=>a.tax]];
+  const price=a=>a.revenue/a.units, profitability=a=>100*a.profit/a.cogs;
+  const detail=[row('Продажи, шт.',a=>a.units),row('Цена до СПП, руб./шт.',price),row('Выручка до СПП, руб.',a=>a.revenue),row('Себестоимость, руб.',a=>a.cogs)];
+  for(const [name,value] of expenseMetrics){
+   detail.push(row(name+', руб.',value),row(name+', руб./шт.',a=>value(a)/a.units),row(name+', %',a=>100*value(a)/a.revenue));
+  }
+  detail.push(row('Сверка прибыли, руб.',a=>a.reconcile),row('Операционная прибыль, руб.',a=>a.profit),row('Маржинальность, %',margin),row('Рентабельность, %',profitability));
+  const scenario=focusWeek<0?Object.fromEntries(fields.map(k=>[k,all[0][k]/4])):weeks[focusWeek];
+  const drivers=[
+   ['Продажи, шт.',a=>['','',fmt(a.units)]],
+   ['Цена до СПП',a=>['',fmt(price(a)),'']],
+   ['Выручка до СПП',a=>[fmt(a.revenue?100:NaN),fmt(price(a)),fmt(a.revenue)]],
+   ...expenseMetrics.map(([name,value])=>[name,a=>[fmt(100*value(a)/a.revenue),fmt(value(a)/a.units),fmt(value(a))]]),
+   ['Маржинальность',a=>[fmt(margin(a)),fmt(a.profit/a.units),fmt(a.profit)]],
+   ['Рентабельность',a=>[fmt(profitability(a)),fmt(a.profit/a.units),fmt(a.profit)]]
+  ];
+  const driverTable='<div class="table-wrap"><table class="table unit-table"><thead><tr><th rowspan="2">Юнит-экономика</th><th colspan="3" scope="colgroup">Факт</th><th colspan="3" scope="colgroup">Прогноз</th></tr><tr>'+['%','руб./шт.','Среднее за неделю','%','руб./шт.',focusWeek<0?'Среднее за неделю':'За неделю'].map((s,i)=>'<th'+(i%3===2?' class="forecast-weekly"':'')+'>'+s+'</th>').join('')+'</tr></thead><tbody>'+drivers.map(([name,cells])=>'<tr><td>'+name+'</td>'+[...cells(base),...cells(scenario)].map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+  const weekPicker='<label>Период прогноза <select data-driver-week>'+[[-1,'Среднее за 4 недели'],...dates.map((d,i)=>[i,label(d)])].map(([v,l])=>'<option value="'+v+'" '+(focusWeek===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label>';
+  const notes=[];
+  const stockRows=[];
+  const stockPosition=(name,plan,stock)=>({
+   name,plan,stock,days:stock!=null&&plan>0?28*stock/plan:null,
+   shortage:stock!=null&&plan-stock>1e-8
+  });
+  const details=items.map(g=>{
+   const plan=total(dates.map(d=>calculate(g,d))), b=4*g.base.profit;
+   const detail=[g.article,fmt(plan.units),fmt(b),fmt(plan.profit),fmt(plan.profit-b)];
+   if(/^нераспредел[её]нное$/i.test(g.article.trim()))return detail;
+   const stock=window.ownerForecastStock(g,end);
+   const article=stockPosition(g.article,plan.units,stock.total);
+   article.sizes=stock.sizes.map(size=>stockPosition(size.size,plan.units*size.share,size.stock))
+    .filter(size=>size.shortage)
+    .sort((a,b)=>a.days-b.days);
+   article.priority=Math.min(article.days??Infinity,article.sizes[0]?.days??Infinity);
+   stockRows.push(article);
+   return detail;
+  });
+  stockRows.sort((a,b)=>Number(b.shortage||b.sizes.length>0)-Number(a.shortage||a.sizes.length>0)||a.priority-b.priority||a.name.localeCompare(b.name,'ru'));
+  const stockRow=(r,isSize=false)=>'<tr'+(r.shortage?' class="stock-shortage"':'')+'><th scope="row">'+(isSize?'Размер ':'')+esc(r.name)+'</th><td>'+fmt(r.plan)+'</td><td>'+fmt(r.stock??NaN)+'</td><td>'+fmt(r.days??NaN)+'</td><td>'+(
+   r.shortage?'Не хватает '+fmt(r.plan-r.stock)+' шт.':r.sizes?.length?'Дефицит по размерам':r.stock==null?'Нет данных об остатке':r.plan<=0?'Нет плановых продаж':'')+'</td></tr>';
+  const stockTable='<div class="table-wrap"><table class="table forecast-stock-table"><thead><tr><th>Артикул / размер</th><th>План за 4 недели, шт.</th><th>Остаток, шт.</th><th>Оборачиваемость (план), дней</th><th>Статус</th></tr></thead><tbody>'+
+   stockRows.map(r=>stockRow(r)+r.sizes.map(size=>stockRow(size,true)).join('')).join('')+'</tbody></table></div>';
+  if(changed){
+   const scalable=items.filter(g=>g.base.units>0&&g.base.revenue>0);
+   const last=total(scalable.map(g=>calculate(g,dates[3])));
+   const fixedProfit=weeks[3].profit-last.profit;
+   const unit=(last.profit+last.reconcile)/last.units;
+   if(unit>0&&last.units>0)notes.unshift('Для сохранения базовой прибыли на последней неделе при текущей структуре продаж потребуется '+Math.max(0,Math.ceil((base.profit-fixedProfit+last.reconcile)/unit-1e-9))+' шт. по позициям с продажами.');
+  }
+  view.innerHTML='<article class="card"><h3>'+marketTitle+'</h3><p class="hint">База '+label(end-3*W)+' — '+label(end)+' · Прогноз '+label(dates[0])+' — '+label(dates[3])+'</p><p><strong>Операционная прибыль за 4 недели: '+fmt(base.profit*4)+' ₽</strong>'+(changed?' → <strong>'+fmt(all[0].profit)+' ₽</strong> по сценарию':'')+'</p>'+weekPicker+driverTable+'<div class="forecast-actions"><button type="button" data-add>Изменить параметр</button>'+(rules.length?'<button type="button" data-reset>Сбросить сценарий</button>':'')+'</div><div data-editor></div>'+rules.map(r=>'<div class="forecast-rule">'+esc([r.market==='all'?'Все площадки':r.market,r.article||r.category,names[r.key],fmt(r.value)+(r.absolute?(r.key==='units'?' шт.':' ₽'):'%'),'с '+label(r.start)].join(' · '))+' <button data-edit="'+r.id+'">Изменить</button> <button data-remove="'+r.id+'">Удалить</button></div>').join('')+'<details><summary>Прибыль по неделям (план)</summary>'+table(head,lines)+'</details><details><summary>Подробный расчёт (план)</summary>'+table(head,detail)+'<p class="hint">Налоги пропорциональны выручке, сверка прибыли сохраняется в рублях. Для позиций без положительных продаж и выручки сохраняется средний факт.</p></details>'+(items.length>1?'<details><summary>По артикулам</summary>'+table(['Артикул','План, шт.','База, ₽','Сценарий, ₽','Разница, ₽'],details,true)+'</details>':'')+'<details><summary>Ориентиры по продажам и запасу ('+stockRows.length+')</summary><p class="hint">Остаток на конец '+label(end)+' · Оборачиваемость = остаток × 28 / план продаж за 4 недели. План по размерам распределяется по долям продаж за базовый период.</p>'+stockTable+notes.map(n=>'<p>'+esc(n)+'</p>').join('')+'</details>'+'</article>';
+ }
+ function editor(old){
+  const {items,end}=model;
+  const groups=[];
+  for(const g of items)for(const article of ['',g.article]){
+   const market=g.market,k=JSON.stringify([market,g.category,article]);
+   if(!groups.some(x=>x[0]===k))groups.push([k,[market==='all'?'Все площадки':market,article||('Категория '+g.category)].join(' · ')]);
+  }
+  if(old){const k=JSON.stringify([old.market,old.category,old.article]);if(!groups.some(x=>x[0]===k))groups.push([k,old.article||old.category]);}
+  const box=view.querySelector('[data-editor]');
+  box.innerHTML='<form><label>Область<select name="scope">'+options(groups)+'</select></label><label>Параметр<select name="key">'+options(Object.entries(names))+'</select></label><label>Единица<select name="unit"></select></label><label><span data-amount-label>Новое значение</span><input name="amount" type="number" required step="any"></label><label>С недели<select name="start">'+options([...new Set([1,2,3,4].map(i=>end+i*W).concat(old?[old.start]:[]))].map(d=>[d,label(d)]))+'</select></label><span data-fact></span><button>Применить</button><button type="button" data-cancel>Отмена</button></form>';
+  const f=box.firstChild,e=f.elements;
+  if(old){e.scope.value=JSON.stringify([old.market,old.category,old.article]);e.key.value=old.key;e.start.value=old.start;e.amount.value=old.value}
+  function sync(){
+   const [market,category,article]=JSON.parse(e.scope.value),key=e.key.value,delta=['units','price'].includes(key);
+   e.unit.innerHTML=options(delta?[['absolute',key==='units'?'шт./нед.':'руб./шт.'],['relative','Изменение, %']]:[['rate','Новая ставка, %']]);
+   const b=delta&&!article?(model.categoryBases.get(category)||zero()):total(model.allItems.filter(g=>match(g,{market,category,article})).map(g=>g.base));
+   box.querySelector('[data-fact]').textContent='База: '+fmt(key==='units'?b.units:key==='price'?b.revenue/b.units:100*b[key]/b.revenue)+(key==='units'?' шт./нед.':key==='price'?' ₽/шт.':'%');
+   limit();
+  }
+  function limit(){box.querySelector('[data-amount-label]').textContent=e.unit.value==='absolute'?(e.key.value==='units'?'Новое количество, шт./нед.':JSON.parse(e.scope.value)[2]?'Новая цена до СПП, руб./шт.':'Новая средняя цена до СПП, руб./шт.'):e.unit.value==='relative'?'Изменение, %':'Новая ставка, %';e.amount.min=e.unit.value==='relative'?-100:0;}
+  sync();if(old&&['units','price'].includes(old.key))e.unit.value=old.absolute?'absolute':'relative';limit();e.scope.onchange=e.key.onchange=sync;e.unit.onchange=limit;
+  f.onsubmit=ev=>{ev.preventDefault();const [market,category,article]=JSON.parse(e.scope.value);
+   const rule={market,category,article,key:e.key.value,absolute:e.unit.value==='absolute',value:e.amount.valueAsNumber,start:Number(e.start.value),id:old?.id||nextId++};
+   rules=rules.filter(r=>r.id!==rule.id&&!(r.market===market&&r.category===category&&r.article===article&&r.key===rule.key&&r.start===rule.start));rules.push(rule);draw();};
+ }
+ view.addEventListener('change',ev=>{if(ev.target.matches('[data-driver-week]')){focusWeek=Number(ev.target.value);draw();}});
+ view.onclick=ev=>{const b=ev.target.closest('button');if(!b)return;
+  if(b.hasAttribute('data-add'))editor();else if(b.dataset.edit)editor(rules.find(r=>r.id===+b.dataset.edit));else if(b.dataset.remove){rules=rules.filter(r=>r.id!==+b.dataset.remove);draw()}else if(b.hasAttribute('data-reset')){rules=[];draw()}else if(b.hasAttribute('data-cancel'))view.querySelector('[data-editor]').replaceChildren();
+ };
+ return draw;
+ }
+ tab.onclick=()=>{document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));tab.classList.add('active');host.classList.add('active');syncComparisonUI();refreshForecast()};
+ document.addEventListener('owner-dashboard-updated',refreshForecast);
+})();</script></body>
 </html>
 
